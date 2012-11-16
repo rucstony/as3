@@ -1,10 +1,25 @@
+/*
+*    msg_send():    
+*    int          giving the socket descriptor for write
+*    char*     giving the ‘canonical’ IP address for the destination node, in presentation format
+*    int          giving the destination ‘port’ number
+*    char*     giving message to be sent
+*    int flag  if set, force a route rediscovery to the destination node even if a non-‘stale’ route already exists (see below) 
+*
+*/
 
+void msg_send( int sockfd_for_write, char *destination_canonical_ip_presentation_format, 
+                int destination_port_number, char *message_to_be_sent, int route_rediscovery_flag )
+{
 
+}
 
+/*
 When a client is evoked at a node, it creates a domain datagram socket.
 
     The client should bind its socket to a ‘temporary’ (i.e., not ‘well-known’) sun_path name obtained from a call to tmpnam() 
     (cf. line 10, Figure 15.6, p. 419) so that multiple clients may run at the same node.
+*/
 
 int fd; 
 char template[] = "fileXXXXXX";
@@ -16,10 +31,15 @@ strcpy(cliaddr.sun_path, template);
 
 while(1)
 {
+    char *server_vm;
     printf("Please select the server VM : vm1,vm2, ... vm10 :\n");
-} 
+    scanf("%s",server_vm);
+    printf("Client at node  vm i1  sending request to server at  vm i2\n", );
 
+    msg_send();
+}
 
+/*
     Note that tmpnam() is actually highly deprecated. You should use the mkstemp() function instead - look up the
      online man pages on minix (‘man mkstemp’) for details.
 
@@ -47,3 +67,4 @@ The client then enters an infinite loop repeating the steps below.
     The client then retransmits the message out, setting the flag parameter in msg_send to force a route rediscovery, and prints out an appropriate message on stdout. This is done only once, when a timeout for a given message to the server occurs for the first time.
 
     Client repeats steps 1. - 3.
+*/
