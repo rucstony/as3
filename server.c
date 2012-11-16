@@ -1,3 +1,4 @@
+/*
 A time server runs on each of the ten vm machines. The client code should also be available on each vm so that it can be
 evoked at any of them.
 
@@ -7,7 +8,7 @@ IP mechanism running at their nodes. You are to implement an API using Unix doma
 access the local ODR service directly (somewhat similar, in effect, to the way that raw sockets
  permit an application to access IP directly). Use Unix domain SOCK_DGRAM, rather than SOCK_STREAM,
  sockets (see Figures 15.5 & 15.6, pp. 418 - 419).
-
+*/
 
 /*
 *    msg_send():    
