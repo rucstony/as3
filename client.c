@@ -20,7 +20,6 @@ When a client is evoked at a node, it creates a domain datagram socket.
     The client should bind its socket to a ‘temporary’ (i.e., not ‘well-known’) sun_path name obtained from a call to tmpnam() 
     (cf. line 10, Figure 15.6, p. 419) so that multiple clients may run at the same node.
 */
-
 int fd; 
 char template[] = "fileXXXXXX";
 fd = mkstemp(template);
@@ -28,16 +27,6 @@ fd = mkstemp(template);
 bzero(&cliaddr, sizeof(cliaddr));       /* bind an address for us */
 cliaddr.sun_family = AF_LOCAL;
 strcpy(cliaddr.sun_path, template);
-
-while(1)
-{
-    char *server_vm;
-    printf("Please select the server VM : vm1,vm2, ... vm10 :\n");
-    scanf("%s",server_vm);
-    printf("Client at node  vm i1  sending request to server at  vm i2\n", );
-
-    msg_send();
-}
 
 /*
     Note that tmpnam() is actually highly deprecated. You should use the mkstemp() function instead - look up the
@@ -59,12 +48,34 @@ The client then enters an infinite loop repeating the steps below.
          client at node  vm i1  sending request to server at  vm i2
     (In general, throughout this assignment, “trace” messages such as the one above should give the vm names and not IP addresses of the nodes.)
 
-    Client then blocks in msg_recv awaiting response. This attempt to read from the domain socket should be backed up by a timeout in case no response ever comes. I leave it up to you whether you ‘wrap’ the call to msg_recv in a timeout, or you implement the timeout inside msg_recv itself.
+    Client then blocks in msg_recv awaiting response. This attempt to read from the domain socket should be backed up by a 
+    timeout in case no response ever comes. I leave it up to you whether you ‘wrap’ the call to msg_recv in a timeout,
+     or you implement the timeout inside msg_recv itself.
+    
     When the client receives a response it prints out on stdout the message
          client at node  vm i1 : received from   vm i2  <timestamp>
     If, on the other hand, the client times out, it should print out the message
          client at node  vm i1 : timeout on response from   vm i2
-    The client then retransmits the message out, setting the flag parameter in msg_send to force a route rediscovery, and prints out an appropriate message on stdout. This is done only once, when a timeout for a given message to the server occurs for the first time.
+    The client then retransmits the message out, setting the flag parameter in msg_send to force a route rediscovery,
+     and prints out an appropriate message on stdout. This is done only once, when a timeout for a given message to the server occurs for the first time.
 
     Client repeats steps 1. - 3.
 */
+while(1)
+{
+    char *server_vm;
+    printf("Please select the server VM : vm1,vm2, ... vm10 :\n");
+    scanf("%s",server_vm);
+    printf("Client at node  vm i1  sending request to server at  vm i2\n", );
+
+    msg_send();
+    msg_recv();
+    printf("Client at node  vm i1 : received from   vm i2  <timestamp>\n");
+    if(msg_recv_timeout)
+    {
+        printf("Client at node  vm i1 : timeout on response from   vm i2\n");
+        route_rediscovery_flag=1
+        msg_retransmit();
+    }    
+}
+
