@@ -3,6 +3,17 @@
 #include <netpacket/packet.h>
 #include <net/ethernet.h> /* the L2 protocols */
 #define PROTOCOL_VALUE 108817537	
+/*
+The ODR process runs on each of the ten vm machines. It is evoked with a single command line argument which gives a “staleness” time parameter, in seconds.*/
+	int staleness_param;
+	if(argc<2)
+	{
+		printf("invalid args: ODR <seconds>\n");
+	}
+	else
+	{
+		staleness_param=atoi(arg[1]);
+	}
 
 /* PF_PACKET creation */
 /*
@@ -19,7 +30,9 @@ to some other cse 533 student's implementation. Because your value of protocol i
 the Ethernet frame header, the value chosen should be not less than 1536 (0x600) so that it is not misinterpreted as the length
 of an Ethernet 802.3 frame.
 */
-packet_socket = socket(PF_PACKET, int socket_type, int protocol);
+
+//packet_socket = socket(PF_PACKET, int socket_type, int protocol);
+packet_socket = socket(PF_PACKET, SOCK_RAW, htonl(PROTOCOL_VALUE));
 
 /*
 It uses get_hw_addrs (available to you on minix in ~cse533/Asgn3_code) to obtain the index, and associated (unicast) IP 
@@ -40,7 +53,28 @@ then ioctl returns get_hw_addrs a HW address which is the equivalent of 00:00:00
    its usual ‘HWaddr = xx:xx:xx:xx:xx:xx’. 
 */
 
+/*
+struct hwa_info {
+  char    if_name[IF_NAME];     // interface name, null terminated 
+  char    if_haddr[IF_HADDR];   // hardware address 
+  int     if_index;             // interface index 
+  short   ip_alias;             // 1 if hwa_addr is an alias IP address 
+  struct  sockaddr  *ip_addr;   // IP address 
+  struct  hwa_info  *hwa_next;  // next of these structures 
+};
+
+*/
+
 get_hw_addrs();
+struct hwa_info *hwa, *hwahead, ,hw_addrs[10];
+hwahead = hwa = Get_hw_addrs(); //parse through hwa to get all addrs and store into struct array of 
+//write below loop by refering to the pr_hw_addrs function and fill hw_addrs
+while(hwa->next)
+{
+hw_addrs[i]=hwa;
+i++;
+}
+
 
 /*
 The ODR process creates one or more PF_PACKET sockets.
@@ -105,12 +139,29 @@ entry was made or last “reconfirmed” / updated. Note that a destination node
 is to be identified only by its ‘canonical’ IP address, and not by any other IP addresses the node has.
 */
 
-destination_canonical_ip_address, next_hop_node_ethernet_address, outgoing_interface_index, number_of_hops_to_destination, made_or_last_reconfirmed_or_updated_timestamp
+typedef struct 
+{
+destination_canonical_ip_address, 
+next_hop_node_ethernet_address, 
+outgoing_interface_index, 
+number_of_hops_to_destination, 
+made_or_last_reconfirmed_or_updated_timestamp
+}routing_entry;
 
+routing_entry routing_table[ROUTING_BUF_SIZE];
 
-
-
-
+//DEFINE structure for RREQ/RREP messages
+struct req_msgs
+{
+	source_addr
+	//source_sequence_#
+	broadcast_id //incremented every time the source issues new RREQ
+	destination_canonical_ip_address
+	//dest_sequence_#
+	number_of_hops_to_destination
+	control_msg_type //(RREQ or RREP)
+	RREP_sent
+}
 
 /*
 
@@ -131,6 +182,7 @@ This necessitates having one or two aspects of its operations work in a differen
 complicated, way than AODV does. ODR has several basic responsibilities :
 */
 /*
+
 FLOODING THE RREQ
 Generate a RREQ in response to a time client calling msg_send for a destination for which ODR 
 has no route (or for which a route exists, but msg_send has the flag parameter set or the 
@@ -145,6 +197,72 @@ ODR will have to take care not to treat these copies as new incoming RREQs.
 
 Also note that ODR at the client node increments the broadcast_id every time it issues a new RREQ for any destination node. 
 */
+char data_stream[MAXLINE];
+char msg_fields[][];
+while(n=read(sockfd,data_stream,MAXLINE)) //data will be written into sockfd when client msg_send()s
+{
+		msg_fields[i]=data_stream.split("|");
+
+	
+	 destination_canonical_ip_presentation_format=msg_fields[0]
+	 destination_port_number=atoi(msg_fields[1])
+	 message_to_be_sent=msg_fields[2]
+	 route_rediscovery_flag=atoi(msg_fields[3])
+	 
+	 routing_entry existing_entry;
+	if(!route_rediscovery_flag)
+	{
+		route_exists=check_if_route_exists(destination_canonical_ip_presentation_format,&existing_entry); //pass address of existing_entry so that its value can be set inside the function
+	}else
+	{	
+		route_exists=0;
+	}
+
+	if(route_exists)
+	{
+		send_RREP(existing_entry);
+
+
+	}else
+	{
+		req_msgs RREQ;
+		RREQ.source_addr=source_addr;
+		RREQ.broadcast_id=broadcast_id++;//incremented every time the source issues new RREQ
+		RREQ.destination_canonical_ip_address=destination_canonical_ip_presentation_format;
+		RREQ.number_of_hops_to_destination=0; //sending RREQ from source
+		RREQ.control_msg_type=1 //(RREQ = 1)
+		send_RREQ(RREQ);
+	}
+}
+
+void check_if_route_exists(char * destination_canonical_ip_presentation_format,routing_entry *existing_entry)
+{
+	int count=0;
+	int route_found=0;
+	while( count < routing_table.size() )
+	{
+		routing_entry route=routing_table[count];
+		if( strcmp(route.destination_canonical_ip_addres, destination_canonical_ip_presentation_format) == 0)
+		{
+			if(( route.made_or_last_reconfirmed_or_updated_timestamp-curr_time_ms) >= staleness_param  )
+			{
+				routing_table[count].remove;
+				
+			}
+			else{
+				route_found = 1;
+				route.made_or_last_reconfirmed_or_updated_timestamp = curr_time_ms;
+			}
+			break;
+		}
+		count++;
+	}
+	if( route_found )
+	{
+		existing_entry = &routing_table[count];
+	}
+
+}
 
 /*
 RECIEVING RREQs AND GENERATING RREPs
@@ -266,7 +384,73 @@ itself and not any other node, and will cause intermediate nodes to update their
 to both source and destination nodes in accordance with the latest routing information received,
 to cover the possibility that older routes are no longer valid because nodes and/or links along
 their paths have gone down.
+*/
 
+char odr_packets[MAXLINE];
+char msg_fields[][];
+req_msgs req_type;
+while(req_type=recv_ODR()) //recv RREQ or RREP
+{
+	if(req_type.control_msg_type == 1)//RREQ
+	{
+		 req_type.number_of_hops_to_destination++;
+		 destination_canonical_ip_presentation_format=req_type.destination_canonical_ip_address
+		 destination_port_number=atoi(req_type.destination_canonical_ip_address)
+		 message_to_be_sent=msg_fields[2]
+		 route_rediscovery_flag=atoi(msg_fields[3])
+		 
+		 routing_entry existing_entry;
+		 route_exists=check_if_route_exists(destination_canonical_ip_presentation_format,&existing_entry); //pass address of existing_entry so that its value can be set inside the function
+	
+		if(route_exists)
+		{
+			if(req_type.RREP_sent==0)
+			{
+				send_RREP(existing_entry);
+				req_type.RREP_sent = 1; 
+			}else{
+				
+				send_RREQ(req_type);
+			}
+
+		}else
+		{
+			update_routing_table();
+			send_RREQ(req_type);
+			
+		}
+	}
+}
+void check_if_route_exists(char * destination_canonical_ip_presentation_format,routing_entry *existing_entry)
+{
+	int count=0;
+	int route_found=0;
+	while( count < routing_table.size() )
+	{
+		routing_entry route=routing_table[count];
+		if( strcmp(route.destination_canonical_ip_addres, destination_canonical_ip_presentation_format) == 0)
+		{
+			if(( route.made_or_last_reconfirmed_or_updated_timestamp-curr_time_ms) >= staleness_param  )
+			{
+				routing_table[count].remove;
+				
+			}
+			else{
+				route_found = 1;
+				route.made_or_last_reconfirmed_or_updated_timestamp = curr_time_ms;
+			}
+			break;
+		}
+		count++;
+	}
+	if( route_found )
+	{
+		existing_entry = &routing_table[count];
+	}
+
+}
+
+/*
 A type 2, application payload, message needs to contain the following type of information :
 
     type  =  2

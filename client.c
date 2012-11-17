@@ -11,7 +11,10 @@
 void msg_send( int sockfd_for_write, char *destination_canonical_ip_presentation_format, 
                 int destination_port_number, char *message_to_be_sent, int route_rediscovery_flag )
 {
-
+// this  function will write this info in a single char format to sockfd_for_write
+char output_to_sock[MAXLINE];
+output_to_sock= destination_canonical_ip_presentation_format+ "|"+destination_port_number+"|"+message_to_be_sent+"|"+route_rediscovery_flag;
+write(sockfd_for_write,output_to_sock,sizeof(output_to_sock));
 }
 
 /*
