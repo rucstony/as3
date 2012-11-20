@@ -1,39 +1,34 @@
 #include    "unp.h"
-void msg_send( int sockfd_for_write, char *destination_canonical_ip_presentation_format, 
-                int destination_port_number, char *message_to_be_sent, int route_rediscovery_flag );
+#define MAXLINE 10000
+void msg_send( int sockfd_for_write, char *destination_canonical_ip_presentation_format, char *destination_port_number, char *message_to_be_sent, char* route_rediscovery_flag );
+
 int main(int argc, char **argv)
 {
     int                 sockfd;
     socklen_t           len;
-    struct sockaddr_un  addr1, addr2;
-
-    if (argc != 2)
-        err_quit("usage: unixbind <pathname>");
-/*
-*    msg_send():    
-*    int          giving the socket descriptor for write
-*    char*     giving the ‘canonical’ IP address for the destination node, in presentation format
-*    int          giving the destination ‘port’ number
-*    char*     giving message to be sent
-*    int flag  if set, force a route rediscovery to the destination node even if a non-‘stale’ route already exists (see below) 
-*
-*/
-
-
-
-/*
-When a client is evoked at a node, it creates a domain datagram socket.
-
-    The client should bind its socket to a ‘temporary’ (i.e., not ‘well-known’) sun_path name obtained from a call to tmpnam() 
-    (cf. line 10, Figure 15.6, p. 419) so that multiple clients may run at the same node.
-*/
-    int fd; 
-    char template[] = "fileXXXXXX";
-    fd = mkstemp(template);
-
+    struct sockaddr_un  cliaddr, addr2;
+    int fd;
+    char template[] = "fileXXXXXX", route_rediscovery_flag[]="0";
+    char message_to_be_sent[MAXLINE];
+//    if (argc != 2)
+  //      err_quit("usage: unixbind <pathname>");
+    
+    sockfd = mkstemp(template);
+    printf("%d\n",sockfd );
     bzero(&cliaddr, sizeof(cliaddr));       /* bind an address for us */
     cliaddr.sun_family = AF_LOCAL;
     strcpy(cliaddr.sun_path, template);
+    //sockfd = socket(AF_LOCAL, SOCK_STREAM, 0);
+
+    unlink(argv[1]);        /* OK if this fails */
+
+    
+    bind(sockfd, (SA *) &cliaddr, SUN_LEN(&cliaddr));
+
+    len = sizeof(addr2);
+    getsockname(sockfd, (SA *) &addr2, &len);
+    printf("bound name = %s, returned len = %d template= %s \n", addr2.sun_path, len,template);
+
 
 /*
     Note that tmpnam() is actually highly deprecated. You should use the mkstemp() function instead - look up the
@@ -73,40 +68,68 @@ When a client is evoked at a node, it creates a domain datagram socket.
         char *server_vm;
         printf("Please select the server VM : vm1,vm2, ... vm10 :\n");
         scanf("%s",server_vm);
-        printf("Client at node  vm i1  sending request to server at  vm i2\n", );
+        printf("Client at node  vm i1  sending request to server at  vm i2\n", server_vm);
 
-        msg_send();
-        msg_recv();
+         msg_send(  sockfd,  argv[0], "72217",  message_to_be_sent, route_rediscovery_flag );
+        //msg_recv();
+         struct hostent hptr;
+        char *ptr, **pptr;
+
+        if((hptr=gethostbyname(server_vm))==NULL)
+        {
+            err_msg("gethostbyname error for host: %s : %s",ptr,hstrerror(h_errno));
+            return 0;
+        }
+
+        for(pptr=hptr->h_aliases;*pptr!=NULL;pptr++)
+            printf("\talias: %s\n",*pptr);
+        //printf("4....%ld\n",hptr->h_addrtype);
+        /*if(hptr->h_addrtype==NULL)
+        {
+                  fprintf(stderr,"Invalid IP address\n");
+                return 0;
+        }
+
+                switch(hptr->h_addrtype)
+        {
+                case AF_INET:
+        //printf("AF_INET type");
+
+                pptr=hptr->h_addr_list;
+                break;
+
+                default:
+                fprintf(stderr,"unknown address type\n");
+                return 0;
+                break;
+        }
+//printf("5....%ld\n",*pptr);
+        if(*pptr==NULL)
+        {
+                  fprintf(stderr,"Invalid IP address\n");
+                return 0;
+        }
+*/
         printf("Client at node  vm i1 : received from   vm i2  <timestamp>\n");
         if(msg_recv_timeout)
         {
             printf("Client at node  vm i1 : timeout on response from   vm i2\n");
-            route_rediscovery_flag=1
+            route_rediscovery_flag="1";
             msg_retransmit();
-        }    
+        }
+            
     }
 
-    sockfd = socket(AF_LOCAL, SOCK_STREAM, 0);
-
-    unlink(argv[1]);        /* OK if this fails */
-
-    bzero(&addr1, sizeof(addr1));
-    addr1.sun_family = AF_LOCAL;
-    strncpy(addr1.sun_path, argv[1], sizeof(addr1.sun_path)-1);
-    Bind(sockfd, (SA *) &addr1, SUN_LEN(&addr1));
-
-    len = sizeof(addr2);
-    Getsockname(sockfd, (SA *) &addr2, &len);
-    printf("bound name = %s, returned len = %d\n", addr2.sun_path, len);
-
+    
     exit(0);
 }
 
 void msg_send( int sockfd_for_write, char *destination_canonical_ip_presentation_format, 
-                int destination_port_number, char *message_to_be_sent, int route_rediscovery_flag )
+                char  *destination_port_number, char *message_to_be_sent, char *route_rediscovery_flag )
 {
     // this  function will write this info in a single char format to sockfd_for_write
     char output_to_sock[MAXLINE];
-    output_to_sock= destination_canonical_ip_presentation_format+ "|"+destination_port_number+"|"+message_to_be_sent+"|"+route_rediscovery_flag;
+    sprintf(output_to_sock,"%s|%s|%s|%s", destination_canonical_ip_presentation_format,destination_port_number,message_to_be_sent,route_rediscovery_flag);
+    printf("%s\n", output_to_sock);
     write(sockfd_for_write,output_to_sock,sizeof(output_to_sock));
 }
