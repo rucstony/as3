@@ -54,7 +54,6 @@ int msg_recv( int sockfd_for_read,char *message_received,
 
 void retrieveDestinationCanonicalIpPresentationFormat(const char *server_vm, char *destination_canonical_ip_presentation_format)
 {
-  char destination_canonical_ip_presentation_format[100];
   struct hostent *hptr;
   char *ptr, **pptr;
   if((hptr=gethostbyname(server_vm))==NULL)
