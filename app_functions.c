@@ -111,5 +111,4 @@ void retrieveHostName( const char *address , char * h_name)
    h_name = hptr->h_name;
   printf("Client Hostname : `%s`\n",h_name);
  
-  //return hptr->h_name;
  } 
