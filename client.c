@@ -71,8 +71,6 @@ int main(int argc, char **argv)
 */
     while(1)
     {
-        
-        
         printf("Please select the server VM : vm1,vm2, ... vm10 :\n");
         scanf("%s",&server_vm);
     
@@ -86,7 +84,8 @@ int main(int argc, char **argv)
 
         msg_recv( sockfd, message_received, source_canonical_ip_presentation_format, source_port_number);
 
-        printf("Client at node  vm i1 : received from   vm i2  <timestamp>\n");
+        retrieveHostName( source_canonical_ip_presentation_format, server_vm );
+        printf("Client at node  %s received from %s <timestamp>\n", client_vm, server_vm);
         /*if(msg_recv_timeout)
         {
             printf("Client at node  vm i1 : timeout on response from   vm i2\n");
