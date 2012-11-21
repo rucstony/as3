@@ -74,7 +74,7 @@ int main(int argc, char const *argv[])
 	else
 	{
 		staleness_param = atoi( argv[1] );
-		printf( "Staleness parameter is : %s\n", staleness_param );
+		printf( "Staleness parameter is : %ld\n", staleness_param );
 	}
 /*
 The ODR process runs on each of the ten vm machines. It is evoked with a single command line argument which gives a “staleness” time parameter, in seconds.
