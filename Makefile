@@ -35,10 +35,18 @@ CFLAGS = ${FLAGS} -I/home/users/cse533/Stevens/unpv13e/lib
 all: client odr server  \
 	get_hw_addrs.o prhwaddrs.o ${CC} -o prhwaddrs prhwaddrs.o get_hw_addrs.o ${LIBS}
 
-client: client.o
-	${CC} ${FLAGS} -o client client.o ${LIBS}
+app_functions.o: app_functions.c
+	${CC} ${FLAGS} -c app_functions.c
+
+client: client.o app_functions.o
+	${CC} ${FLAGS} -o client client.o app_functions.o ${LIBS}
 client.o: client.c
 	${CC} ${CFLAGS} -c client.c
+
+server: server.o app_functions.o
+	${CC} ${FLAGS} -o server server.o app_functions.o ${LIBS}
+server.o: server.c
+	${CC} ${CFLAGS} -c server.c
 
 get_hw_addrs.o: get_hw_addrs.c
 	${CC} ${FLAGS} -c get_hw_addrs.c
@@ -52,16 +60,6 @@ odr: odr.o get_hw_addrs.o prhwaddrs.o
 odr.o: odr.c
 	${CC} ${CFLAGS} -c odr.c
 	
-server: server.o
-	${CC} ${FLAGS} -o server server.o ${LIBS}
-server.o: server.c
-	${CC} ${CFLAGS} -c server.c
-
-
-
-
-
-
 clean:
 	rm client server odr
 

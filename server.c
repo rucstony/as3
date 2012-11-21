@@ -1,3 +1,4 @@
+#include 	"unp.h"
 /*
 A time server runs on each of the ten vm machines. The client code should also be available on each vm so that it can be
 evoked at any of them.
@@ -10,6 +11,9 @@ access the local ODR service directly (somewhat similar, in effect, to the way t
  sockets (see Figures 15.5 & 15.6, pp. 418 - 419).
 */
 
+
+ 
+
 /*
 *    msg_send():    
 *    int          giving the socket descriptor for write
@@ -20,33 +24,30 @@ access the local ODR service directly (somewhat similar, in effect, to the way t
 *
 */
 
-void msg_send( int sockfd_for_write, char *destination_canonical_ip_presentation_format, 
-                int destination_port_number, char *message_to_be_sent, int route_rediscovery_flag )
-{
-
-}
-
 
 //The server creates a domain datagram socket.
-
-int					sockfd;
-struct sockaddr_un	cliaddr, servaddr;
-
-sockfd = Socket(AF_LOCAL, SOCK_DGRAM, 0);
-
-bzero(&servaddr, sizeof(servaddr));
-servaddr.sun_family = AF_LOCAL;
-strcpy(servaddr.sun_path, UNIXDG_PATH);
-
-bind(sockfd, (SA *) &servaddr, sizeof(servaddr));
-
-while(1)
+int main()
 {
-	msg_recv();
-	printf("Server at node  vm i1  responding to request from  vm i2\n");
-	msg_send();
-}
+	int					sockfd;
+	struct sockaddr_un	cliaddr, servaddr;
 
+	sockfd = socket(AF_LOCAL, SOCK_DGRAM, 0);
+
+	bzero(&servaddr, sizeof(servaddr));
+	servaddr.sun_family = AF_LOCAL;
+	strcpy(servaddr.sun_path, UNIXDG_PATH);
+
+	bind(sockfd, (SA *) &servaddr, sizeof(servaddr));
+
+	while(1)
+	{
+		msg_recv();
+		printf("Server at node  vm i1  responding to request from  vm i2\n");
+		msg_send();
+	}
+
+	return 0;
+}
 /*
 The server socket is assumed to have a (node-local) ‘well-known’ sun_path name which it binds to.
  This ‘well-known’ sun_path name is designated by a (network-wide) ‘well-known’ ‘port’ value.

@@ -97,8 +97,8 @@ the Ethernet frame header, the value chosen should be not less than 1536 (0x600)
 of an Ethernet 802.3 frame.
 */
 
-//packet_socket = socket(PF_PACKET, int socket_type, int protocol);
-packet_socket = socket(PF_PACKET, SOCK_RAW, htonl(PROTOCOL_VALUE));
+	//packet_socket = socket(PF_PACKET, int socket_type, int protocol);
+	packet_socket = socket(PF_PACKET, SOCK_RAW, htonl(PROTOCOL_VALUE));
 
 /*
 It uses get_hw_addrs (available to you on minix in ~cse533/Asgn3_code) to obtain the index, and associated (unicast) IP 
@@ -134,33 +134,34 @@ struct hwa_info {
 //parse through hwa to get all addrs and store into struct array of 
 //write below loop by refering to the pr_hw_addrs function and fill hw_addrs
 
-for (hwahead = hwa = Get_hw_addrs(); hwa != NULL; hwa = hwa->hwa_next) {
-	
-	printf("%s :%s", hwa->if_name, ((hwa->ip_alias) == IP_ALIAS) ? " (alias)\n" : "\n");
-	
-	if ( (sa = hwa->ip_addr) != NULL)
-		printf("         IP addr = %s\n", Sock_ntop_host(sa, sizeof(*sa)));
-			
-	prflag = 0;
-	i = 0;
-	do {
-		if (hwa->if_haddr[i] != '\0') {
-			prflag = 1;
-			break;
-		}
-	} while (++i < IF_HADDR);
-
-	if (prflag) {
-		printf("         HW addr = ");
-		ptr = hwa->if_haddr;
-		i = IF_HADDR;
+	for (hwahead = hwa = Get_hw_addrs(); hwa != NULL; hwa = hwa->hwa_next) 
+	{
+		
+		printf("%s :%s", hwa->if_name, ((hwa->ip_alias) == IP_ALIAS) ? " (alias)\n" : "\n");
+		
+		if ( (sa = hwa->ip_addr) != NULL)
+			printf("         IP addr = %s\n", Sock_ntop_host(sa, sizeof(*sa)));
+				
+		prflag = 0;
+		i = 0;
 		do {
-			printf("%.2x%s", *ptr++ & 0xff, (i == 1) ? " " : ":");
-		} while (--i > 0);
-	}
+			if (hwa->if_haddr[i] != '\0') {
+				prflag = 1;
+				break;
+			}
+		} while (++i < IF_HADDR);
 
-	printf("\n         interface index = %d\n\n", hwa->if_index);
-}
+		if (prflag) {
+			printf("         HW addr = ");
+			ptr = hwa->if_haddr;
+			i = IF_HADDR;
+			do {
+				printf("%.2x%s", *ptr++ & 0xff, (i == 1) ? " " : ":");
+			} while (--i > 0);
+		}
+
+		printf("\n         interface index = %d\n\n", hwa->if_index);
+	}
 
 
 /*
@@ -204,13 +205,13 @@ The ODR process also creates a domain datagram socket for communication with app
 */
 
 
-sockfd = Socket(AF_LOCAL, SOCK_DGRAM, 0);
+	sockfd = Socket(AF_LOCAL, SOCK_DGRAM, 0);
 
-bzero(&servaddr, sizeof(servaddr));
-servaddr.sun_family = AF_LOCAL;
-strcpy(servaddr.sun_path, UNIXDG_PATH);
+	bzero(&servaddr, sizeof(servaddr));
+	servaddr.sun_family = AF_LOCAL;
+	strcpy(servaddr.sun_path, UNIXDG_PATH);
 
-bind(sockfd, (SA *) &servaddr, sizeof(servaddr));
+	bind(sockfd, (SA *) &servaddr, sizeof(servaddr));
 
 
 
@@ -250,53 +251,52 @@ ODR will have to take care not to treat these copies as new incoming RREQs.
 Also note that ODR at the client node increments the broadcast_id every time it issues a new RREQ for any destination node. 
 */
 
-while(fgets(sockfd,data_stream,MAXLINE)!=NULL) //data will be written into sockfd when client msg_send()s
-{
-
-	msg_fields[0] = strtok(str_from_sock, "|"); //get pointer to first token found and store in 0
-                                       //place in array
-    while(msg_fields[i]!= NULL) 
-    {   //ensure a pointer was found
-        i++;
-        msg_fields[i] = strtok(NULL, "|"); //continue to tokenize the string
-    }
-    
-    for(j = 0; j <= i-1; j++) {
-        printf("%s\n", msg_fields[j]); //print out all of the tokens
-    }
-    
-	
-	 destination_canonical_ip_presentation_format=msg_fields[0];
-	 destination_port_number=atoi(msg_fields[1]);
-	 message_to_be_sent=msg_fields[2];
-	 route_rediscovery_flag=atoi(msg_fields[3]);
-	 
-	
-	if(!route_rediscovery_flag)
+	while(fgets(sockfd,data_stream,MAXLINE)!=NULL) //data will be written into sockfd when client msg_send()s
 	{
-		route_exists=check_if_route_exists(destination_canonical_ip_presentation_format,&existing_entry); //pass address of existing_entry so that its value can be set inside the function
-	}else
-	{	
-		route_exists=0;
-	}
 
-	if(route_exists)
-	{
-		//send_RREP(existing_entry);
-
-
-	}else
-	{
+		msg_fields[0] = strtok(str_from_sock, "|"); //get pointer to first token found and store in 0
+	                                       //place in array
+	    while(msg_fields[i]!= NULL) 
+	    {   //ensure a pointer was found
+	        i++;
+	        msg_fields[i] = strtok(NULL, "|"); //continue to tokenize the string
+	    }
+	    
+	    for(j = 0; j <= i-1; j++) {
+	        printf("%s\n", msg_fields[j]); //print out all of the tokens
+	    }
+	    
 		
-		strcpy(RREQ.source_addr,source_addr);
-		RREQ.broadcast_id=broadcast_id++;//incremented every time the source issues new RREQ
-		strcpy(RREQ.destination_canonical_ip_address,destination_canonical_ip_presentation_format);
-		RREQ.number_of_hops_to_destination=0; //sending RREQ from source
-		RREQ.control_msg_type=1; //(RREQ = 1)
-		//send_RREQ(RREQ);
-	}
-}
+		 destination_canonical_ip_presentation_format=msg_fields[0];
+		 destination_port_number=atoi(msg_fields[1]);
+		 message_to_be_sent=msg_fields[2];
+		 route_rediscovery_flag=atoi(msg_fields[3]);
+		 
+		
+		if(!route_rediscovery_flag)
+		{
+			route_exists=check_if_route_exists(destination_canonical_ip_presentation_format,&existing_entry); //pass address of existing_entry so that its value can be set inside the function
+		}else
+		{	
+			route_exists=0;
+		}
 
+		if(route_exists)
+		{
+			//send_RREP(existing_entry);
+
+
+		}else
+		{
+			
+			strcpy(RREQ.source_addr,source_addr);
+			RREQ.broadcast_id=broadcast_id++;//incremented every time the source issues new RREQ
+			strcpy(RREQ.destination_canonical_ip_address,destination_canonical_ip_presentation_format);
+			RREQ.number_of_hops_to_destination=0; //sending RREQ from source
+			RREQ.control_msg_type=1; //(RREQ = 1)
+			//send_RREQ(RREQ);
+		}
+	}
 
 /*
 RECIEVING RREQs AND GENERATING RREPs
@@ -499,9 +499,10 @@ int check_if_route_exists(char * destination_canonical_ip_presentation_format,ro
 	{
 		existing_entry = &routing_table[count];
 	}
-return route_found;
+	return route_found;
 
 }
+
 routing_entry recv_ODR()
 {
 	routing_entry entry;

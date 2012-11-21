@@ -5,8 +5,7 @@
 #include "hw_addrs.h"
 
 
-struct hwa_info *
-get_hw_addrs()
+struct hwa_info * get_hw_addrs()
 {
 	struct hwa_info	*hwa, *hwahead, **hwapnext;
 	int		sockfd, len, lastlen, alias;

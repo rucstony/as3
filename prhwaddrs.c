@@ -1,7 +1,6 @@
 #include	"hw_addrs.h"
 
-int
-main (int argc, char **argv)
+void prhwaddrs()
 {
 	struct hwa_info	*hwa, *hwahead;
 	struct sockaddr	*sa;
@@ -39,5 +38,6 @@ main (int argc, char **argv)
 	}
 
 	free_hwa_info(hwahead);
-	exit(0);
+	return;
+	//exit(0);
 }
