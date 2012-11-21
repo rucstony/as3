@@ -30,6 +30,9 @@ int main()
 {
 	int					sockfd;
 	struct sockaddr_un	cliaddr, servaddr;
+    char message_received[MAXLINE];  
+    char source_canonical_ip_presentation_format[100];
+    char source_port_number[10];
 
 	sockfd = socket(AF_LOCAL, SOCK_DGRAM, 0);
 
@@ -41,9 +44,10 @@ int main()
 
 	while(1)
 	{
-		msg_recv();
+        msg_recv( sockfd, message_received, source_canonical_ip_presentation_format, source_port_number);
 		printf("Server at node  vm i1  responding to request from  vm i2\n");
-		msg_send();
+        msg_send(  sockfd,  source_canonical_ip_presentation_format, "72217",  "message_to_be_sent(from-server)", route_rediscovery_flag );
+
 	}
 
 	return 0;
