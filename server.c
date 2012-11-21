@@ -1,4 +1,6 @@
 #include 	"unp.h"
+#define HOSTNAME_LEN 255
+
 /*
 A time server runs on each of the ten vm machines. The client code should also be available on each vm so that it can be
 evoked at any of them.
@@ -30,6 +32,10 @@ int main()
 {
 	int					sockfd;
 	struct sockaddr_un	cliaddr, servaddr;
+    char message_received[MAXLINE];  
+    char client_vm[HOSTNAME_LEN], server_vm[HOSTNAME_LEN];
+    char source_canonical_ip_presentation_format[100];
+    char source_port_number[10];
 
 	sockfd = socket(AF_LOCAL, SOCK_DGRAM, 0);
 
@@ -39,11 +45,15 @@ int main()
 
 	bind(sockfd, (SA *) &servaddr, sizeof(servaddr));
 
+	gethostname( server_vm, sizeof( server_vm) );
+        
 	while(1)
 	{
-		msg_recv();
-		printf("Server at node  vm i1  responding to request from  vm i2\n");
-		msg_send();
+        msg_recv( sockfd, message_received, source_canonical_ip_presentation_format, source_port_number);
+		retrieveHostName( source_canonical_ip_presentation_format, client_vm );
+		printf("Server at node %s responding to request from  %s\n", server_vm, client_vm );
+        msg_send(  sockfd,  source_canonical_ip_presentation_format, "72217",  "message_to_be_sent(from-server)", route_rediscovery_flag );
+
 	}
 
 	return 0;

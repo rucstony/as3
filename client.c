@@ -1,4 +1,5 @@
 #include    "unp.h"
+#define HOSTNAME_LEN 255
 
 //void msg_send( int sockfd_for_write, char *destination_canonical_ip_presentation_format, char *destination_port_number, char *message_to_be_sent, char* route_rediscovery_flag );
 //void msg_recv( int sockfd_for_read,char *message_received,  char *source_canonical_ip_presentation_format, char  *source_port_number);
@@ -17,7 +18,7 @@ int main(int argc, char **argv)
     char template[] = "fileXXXXXX", route_rediscovery_flag[]="0";
     char message_to_be_sent[MAXLINE];
     char destination_canonical_ip_presentation_format[100];
-    char server_vm[10], client_vm[10];
+    char server_vm[HOSTNAME_LEN], client_vm[HOSTNAME_LEN];
     sockfd = mkstemp(template);
     printf("%d\n",sockfd );
     bzero(&cliaddr, sizeof(cliaddr));       /* bind an address for us */
@@ -70,14 +71,11 @@ int main(int argc, char **argv)
 */
     while(1)
     {
-        
-        
         printf("Please select the server VM : vm1,vm2, ... vm10 :\n");
         scanf("%s",&server_vm);
     
-         retrieveHostName( "127.0.0.1\n" , client_vm );
-         
-         
+        gethostname( client_vm, sizeof(client_vm) );
+                 
         printf("Client at node %s sending request to server at  %s\n", client_vm, server_vm);
         retrieveDestinationCanonicalIpPresentationFormat(server_vm, destination_canonical_ip_presentation_format);      
      //   strcpy(message_to_be_sent,"trace message\n");
@@ -86,7 +84,8 @@ int main(int argc, char **argv)
 
         msg_recv( sockfd, message_received, source_canonical_ip_presentation_format, source_port_number);
 
-        printf("Client at node  vm i1 : received from   vm i2  <timestamp>\n");
+        retrieveHostName( source_canonical_ip_presentation_format, server_vm );
+        printf("Client at node  %s received from %s <timestamp>\n", client_vm, server_vm);
         /*if(msg_recv_timeout)
         {
             printf("Client at node  vm i1 : timeout on response from   vm i2\n");
