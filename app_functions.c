@@ -80,7 +80,9 @@ void retrieveDestinationCanonicalIpPresentationFormat(const char *server_vm, cha
     pptr=hptr->h_addr_list;
     if(pptr!=NULL)
     {
-      printf("%s\n", inet_ntop(hptr->h_addrtype,*pptr,destination_canonical_ip_presentation_format,sizeof(destination_canonical_ip_presentation_format)) );
+      inet_ntop(hptr->h_addrtype,*pptr,destination_canonical_ip_presentation_format,100);
+      printf("destination_canonical_ip_presentation_format: %s\n", destination_canonical_ip_presentation_format);
+      //printf("%s\n", inet_ntop(hptr->h_addrtype,*pptr,destination_canonical_ip_presentation_format,100) );
     }
     break;
 
@@ -103,10 +105,11 @@ void retrieveHostName( const char *address , char * h_name)
   {
     printf("Address is invalid..\n");
     err_msg("gethostbyaddr error for host: %s: %s",
-              argv[1], hstrerror(h_errno));
+              address, hstrerror(h_errno));
     return;
   }
-  printf("Server Hostname : `%s`\n", hptr->h_name);
-  h_name = hptr->h_name;
+   h_name = hptr->h_name;
+  printf("Client Hostname : `%s`\n",h_name);
+ 
   //return hptr->h_name;
  } 

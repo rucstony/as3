@@ -75,7 +75,7 @@ int main(int argc, char **argv)
         printf("Please select the server VM : vm1,vm2, ... vm10 :\n");
         scanf("%s",&server_vm);
     
-         retrieveHostName( "127.0.0.1" , client_vm );
+         retrieveHostName( "127.0.0.1\n" , client_vm );
          
          
         printf("Client at node %s sending request to server at  %s\n", client_vm, server_vm);
