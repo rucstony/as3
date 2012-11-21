@@ -32,26 +32,34 @@ FLAGS = -g -O2
 CFLAGS = ${FLAGS} -I/home/users/cse533/Stevens/unpv13e/lib
 
 
-all: client server odr
+all: client odr server  \
+	get_hw_addrs.o prhwaddrs.o ${CC} -o prhwaddrs prhwaddrs.o get_hw_addrs.o ${LIBS}
 
 client: client.o
 	${CC} ${FLAGS} -o client client.o ${LIBS}
 client.o: client.c
 	${CC} ${CFLAGS} -c client.c
 
+get_hw_addrs.o: get_hw_addrs.c
+	${CC} ${FLAGS} -c get_hw_addrs.c
 
+prhwaddrs.o: prhwaddrs.c
+	${CC} ${FLAGS} -c prhwaddrs.c
+
+
+odr: odr.o get_hw_addrs.o prhwaddrs.o
+	${CC} ${FLAGS} -o odr odr.o get_hw_addrs.o prhwaddrs.o ${LIBS}
+odr.o: odr.c
+	${CC} ${CFLAGS} -c odr.c
+	
 server: server.o
 	${CC} ${FLAGS} -o server server.o ${LIBS}
 server.o: server.c
 	${CC} ${CFLAGS} -c server.c
 
 
-odr: odr.o
-	${CC} ${FLAGS} -o odr odr.o ${LIBS}
-odr.o: odr.c
-	${CC} ${CFLAGS} -c odr.c
 
-# pick up the thread-safe version of readline.c from directory "threads"
+
 
 
 clean:

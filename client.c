@@ -1,7 +1,7 @@
 #include    "unp.h"
-#define MAXLINE 10000
-void msg_send( int sockfd_for_write, char *destination_canonical_ip_presentation_format, char *destination_port_number, char *message_to_be_sent, char* route_rediscovery_flag );
 
+void msg_send( int sockfd_for_write, char *destination_canonical_ip_presentation_format, char *destination_port_number, char *message_to_be_sent, char* route_rediscovery_flag );
+void msg_recv( int sockfd_for_read,char *message_received,  char *source_canonical_ip_presentation_format, char  *source_port_number);
 int main(int argc, char **argv)
 {
     int                 sockfd;
@@ -9,7 +9,9 @@ int main(int argc, char **argv)
     struct sockaddr_un  cliaddr, addr2;
     struct hostent *hptr;
     char *ptr, **pptr;
-
+    char message_received[MAXLINE];  
+    char source_canonical_ip_presentation_format[100];
+    char source_port_number[10];
     int fd;
     char template[] = "fileXXXXXX", route_rediscovery_flag[]="0";
     char message_to_be_sent[MAXLINE];
@@ -116,7 +118,7 @@ int main(int argc, char **argv)
 
         msg_send(  sockfd,  destination_canonical_ip_presentation_format, "72217",  "message_to_be_sent", route_rediscovery_flag );
 
-        //msg_recv();
+        msg_recv( sockfd, message_received, source_canonical_ip_presentation_format, source_port_number);
 
         printf("Client at node  vm i1 : received from   vm i2  <timestamp>\n");
         /*if(msg_recv_timeout)
@@ -146,6 +148,41 @@ void msg_send( int sockfd_for_write, char *destination_canonical_ip_presentation
 
 }
 
+void msg_recv( int sockfd_for_read,char *message_received,  char *source_canonical_ip_presentation_format, 
+                char  *source_port_number)
+{
+    // this  function will write this info in a single char format to sockfd_for_write
+    char str_from_sock[MAXLINE];
+    char *msg_fields[MAXLINE];
+    int i=0,j;
+    //sprintf(str_from_sock,"%s|%s|%s|%s", destination_canonical_ip_presentation_format,destination_port_number,message_to_be_sent,route_rediscovery_flag);
+    //strcpy(str_from_sock,"5|mesg|170.99.12.3|78888\n");
+    fgets(sockfd_for_read,str_from_sock,MAXLINE);
+    printf("%s\n", str_from_sock);
+  //   write(sockfd_for_read,output_to_sock,MAXLINE);
+  //  msg_fields[i]=data_stream.split("|");
+    msg_fields[0] = strtok(str_from_sock, "|"); //get pointer to first token found and store in 0
+                                       //place in array
+    while(msg_fields[i]!= NULL) 
+    {   //ensure a pointer was found
+        i++;
+        msg_fields[i] = strtok(NULL, "|"); //continue to tokenize the string
+    }
+    
+    for(j = 0; j <= i-1; j++) {
+        printf("%s\n", msg_fields[j]); //print out all of the tokens
+    }
+    
+     
+     
+     message_received=msg_fields[1];
+     source_canonical_ip_presentation_format=msg_fields[2];
+     source_port_number=atoi(msg_fields[3]);
+    
+     return atoi(msg_fields[0]); //port to read from
+
+
+}
 /*
 
     int       giving socket descriptor for read
