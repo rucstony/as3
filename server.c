@@ -36,7 +36,8 @@ int main()
     char client_vm[HOSTNAME_LEN], server_vm[HOSTNAME_LEN];
     char source_canonical_ip_presentation_format[100];
     char source_port_number[10];
-
+	char route_rediscovery_flag[]="0";
+	
 	sockfd = socket(AF_LOCAL, SOCK_DGRAM, 0);
 
 	bzero(&servaddr, sizeof(servaddr));
