@@ -7,9 +7,13 @@ int main(int argc, char **argv)
     int                 sockfd;
     socklen_t           len;
     struct sockaddr_un  cliaddr, addr2;
+    struct hostent *hptr;
+    char *ptr, **pptr;
+
     int fd;
     char template[] = "fileXXXXXX", route_rediscovery_flag[]="0";
     char message_to_be_sent[MAXLINE];
+    char destination_canonical_ip_presentation_format[100];
 //    if (argc != 2)
   //      err_quit("usage: unixbind <pathname>");
     
@@ -65,37 +69,42 @@ int main(int argc, char **argv)
 */
     while(1)
     {
-        char *server_vm;
+        
+        char server_vm[10];
         printf("Please select the server VM : vm1,vm2, ... vm10 :\n");
-        scanf("%s",server_vm);
-        printf("Client at node  vm i1  sending request to server at  vm i2\n", server_vm);
+        scanf("%s",&server_vm);
+         //   fgets(server_vm,10,stdin);
+        printf("Client at node  vm i1  sending request to server at  vm i2 %s\n", server_vm);
 
-         msg_send(  sockfd,  argv[0], "72217",  message_to_be_sent, route_rediscovery_flag );
-        //msg_recv();
-         struct hostent hptr;
-        char *ptr, **pptr;
+        
 
         if((hptr=gethostbyname(server_vm))==NULL)
         {
-            err_msg("gethostbyname error for host: %s : %s",ptr,hstrerror(h_errno));
+            err_msg("gethostbyname error for host: %s : %s",server_vm,hstrerror(h_errno));
             return 0;
         }
-
-        for(pptr=hptr->h_aliases;*pptr!=NULL;pptr++)
-            printf("\talias: %s\n",*pptr);
-        //printf("4....%ld\n",hptr->h_addrtype);
-        /*if(hptr->h_addrtype==NULL)
+        printf("gethostbyname worked! \n");
+        //for(pptr=hptr->h_aliases;*pptr!=NULL;pptr++)
+        //    printf("\talias: %s\n",*pptr);
+        if(hptr->h_addrtype==NULL)
         {
                   fprintf(stderr,"Invalid IP address\n");
                 return 0;
         }
+          printf("Address type: ....%ld\n",hptr->h_addrtype);
+        //  printf("\talias: %s\n",hptr);
 
-                switch(hptr->h_addrtype)
+
+       switch(hptr->h_addrtype)
         {
                 case AF_INET:
-        //printf("AF_INET type");
+                printf("AF_INET type");
 
                 pptr=hptr->h_addr_list;
+                if(pptr!=NULL)
+                {
+                printf("%s\n", inet_ntop(hptr->h_addrtype,*pptr,destination_canonical_ip_presentation_format,sizeof(destination_canonical_ip_presentation_format)) );
+                }
                 break;
 
                 default:
@@ -103,20 +112,20 @@ int main(int argc, char **argv)
                 return 0;
                 break;
         }
-//printf("5....%ld\n",*pptr);
-        if(*pptr==NULL)
-        {
-                  fprintf(stderr,"Invalid IP address\n");
-                return 0;
-        }
-*/
+     //   strcpy(message_to_be_sent,"trace message\n");
+
+        msg_send(  sockfd,  destination_canonical_ip_presentation_format, "72217",  "message_to_be_sent", route_rediscovery_flag );
+
+        //msg_recv();
+
         printf("Client at node  vm i1 : received from   vm i2  <timestamp>\n");
-        if(msg_recv_timeout)
+        /*if(msg_recv_timeout)
         {
             printf("Client at node  vm i1 : timeout on response from   vm i2\n");
             route_rediscovery_flag="1";
             msg_retransmit();
         }
+        */
             
     }
 
@@ -132,4 +141,17 @@ void msg_send( int sockfd_for_write, char *destination_canonical_ip_presentation
     sprintf(output_to_sock,"%s|%s|%s|%s", destination_canonical_ip_presentation_format,destination_port_number,message_to_be_sent,route_rediscovery_flag);
     printf("%s\n", output_to_sock);
     write(sockfd_for_write,output_to_sock,sizeof(output_to_sock));
+
+
+
 }
+
+/*
+
+    int       giving socket descriptor for read
+    char*  giving message received
+    char*  giving ‘canonical’ IP address for the source node of message, in presentation format
+    int*     giving source ‘port’ number
+
+
+*/
