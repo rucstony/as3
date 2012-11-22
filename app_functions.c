@@ -10,7 +10,7 @@ void msg_send( int sockfd_for_write,
                char *route_rediscovery_flag )
 {
     char output_to_sock[MAXLINE];
-    sprintf(output_to_sock,"%s|%s|%s|%s", destination_canonical_ip_presentation_format, 
+    sprintf(output_to_sock,"%s|%s|%s|%s\n", destination_canonical_ip_presentation_format, 
                                           destination_port_number,
                                           message_to_be_sent,
                                           route_rediscovery_flag);
@@ -27,28 +27,58 @@ int msg_recv( int sockfd_for_read,char *message_received,
 {
     char str_from_sock[MAXLINE];
     char *msg_fields[MAXLINE];
-    int i=0,j;
-    fgets(sockfd_for_read,str_from_sock,MAXLINE);
-    printf("%s\n", str_from_sock);
-  //   write(sockfd_for_read,output_to_sock,MAXLINE);
-  //  msg_fields[i]=data_stream.split("|");
-    msg_fields[0] = strtok(str_from_sock, "|"); //get pointer to first token found and store in 0
-                                       //place in array
-    while(msg_fields[i]!= NULL) 
-    {   //ensure a pointer was found
-        i++;
-        msg_fields[i] = strtok(NULL, "|"); //continue to tokenize the string
-    }
-    
-    for(j = 0; j <= i-1; j++) {
-        printf("%s\n", msg_fields[j]); //print out all of the tokens
-    }
+    int i=0,j,nready,n;
+    fd_set        rset;
+    printf("reading from socket : %d\n",sockfd_for_read );
 
-     message_received=msg_fields[1];
-     source_canonical_ip_presentation_format=msg_fields[2];
-     source_port_number=atoi(msg_fields[3]);
-    
-     return atoi(msg_fields[0]); //port to read from
+  //  Listen(sockfd_for_read, LISTENQ);
+
+    FD_ZERO(&rset);
+    //maxfdp1 = max(sockfd_for_read, udpfd) + 1;
+    for ( ; ; ) 
+    {
+    //    printf("in loop...\n" );
+        FD_SET(sockfd_for_read, &rset);
+       
+        if ( (nready = select(sockfd_for_read + 1, &rset, NULL, NULL, NULL)) < 0) {
+            if (errno == EINTR)
+              continue;   /* back to for() */
+            else
+              err_sys("select error");
+        }
+
+        if (FD_ISSET(sockfd_for_read, &rset)) 
+        {
+            
+            //printf("in FD_ISSET\n");
+            if((n=read(sockfd_for_read,str_from_sock,MAXLINE))>0)
+            {
+               // printf("fgets done..\n");
+                printf("%s\n", str_from_sock);
+                msg_fields[0] = strtok(str_from_sock, "|"); //get pointer to first token found and store in 0
+                while(msg_fields[i]!= NULL) 
+                {   //ensure a pointer was found
+                    i++;
+                    msg_fields[i] = strtok(NULL, "|"); //continue to tokenize the string
+                }
+                
+                for(j = 0; j <= i-1; j++) {
+                    printf("%s\n", msg_fields[j]); //print out all of the tokens
+                }
+
+               message_received=msg_fields[1];
+               source_canonical_ip_presentation_format=msg_fields[2];
+               source_port_number=atoi(msg_fields[3]);
+               
+               return atoi(msg_fields[0]); //port to read from
+           }
+           //printf("out FD_ISSET\n");
+          
+        }
+        
+  }
+  return -1;
+
 }
 
 
