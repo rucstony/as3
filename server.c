@@ -1,5 +1,6 @@
 #include 	"unp.h"
 #define HOSTNAME_LEN 255
+#define ETH_RUAN537 0x67C6C81
 
 /*
 A time server runs on each of the ten vm machines. The client code should also be available on each vm so that it can be

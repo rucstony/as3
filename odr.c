@@ -8,14 +8,187 @@
 #define ROUTING_BUF_SIZE 100
 
 
-typedef struct 
+struct routing_entry 
 {
-char* destination_canonical_ip_address;
-char* next_hop_node_ethernet_address;
-char* outgoing_interface_index;
-int number_of_hops_to_destination;
-struct timeval made_or_last_reconfirmed_or_updated_timestamp;
-}routing_entry;
+
+	char destination_canonical_ip_address[100];
+	char next_hop_node_ethernet_address[100];
+	char outgoing_interface_index[100];
+	int number_of_hops_to_destination;
+	int made_or_last_reconfirmed_or_updated_timestamp;
+	struct routing_entry * next;
+
+}*rt_head, *rt_tmp;
+
+struct port_sunpath_mapping_entry
+{
+	int  port;
+	char sunpath[100];
+	struct port_sunpath_mapping_entry * next;	
+
+}*psm_head,*psm_tmp;
+
+void insert_to_port_sunpath_mapping( char * sunpath, int port )
+{
+    struct port_sunpath_mapping_entry *node = (struct port_sunpath_mapping_entry *)malloc( sizeof(struct port_sunpath_mapping_entry) );
+
+    strcpy( node->sunpath, sunpath );
+    node->port = port;
+
+    if( psm_head == NULL )
+    {
+      psm_head = node;
+      psm_head->next = NULL;	
+    } 
+    else if( psm_head->next == NULL )
+    {
+      psm_head->next = node;
+      node->next = NULL;
+    } 
+    else
+    {
+      psm_tmp = psm_head->next;       
+      psm_head->next = node;
+      node->next = psm_tmp;            
+    } 
+ 	return;
+ }
+
+struct port_sunpath_mapping_entry * port_sunpath_lookup( char * sunpath )
+{
+	struct port_sunpath_mapping_entry *node; 	
+
+	node = psm_head;
+	while( node != NULL )
+	{
+		if( strcmp( node->sunpath, sunpath ) == 0 )
+		{
+			return node;
+		}	
+		node = node->next;
+	}
+	return NULL;	
+}
+
+int port_sunpath_delete( char * sunpath )
+{
+	struct port_sunpath_mapping_entry *node; 	
+	struct port_sunpath_mapping_entry *prev; 	
+
+	node = psm_head; 
+	while( node != NULL )	
+	{
+		if( strcmp( node->sunpath, sunpath ) == 0 )
+		{
+			//delete logic goes here.
+			prev->next = node->next;
+			node->next = NULL;
+			free(node);	
+		}	
+		prev = node;
+		node = node->next;
+	}	
+	return -1;
+}
+
+void insert_to_routing_table( 	char* destination_canonical_ip_address,	char* next_hop_node_ethernet_address,
+								char* outgoing_interface_index, int number_of_hops_to_destination )
+{
+
+    struct routing_entry *node = (struct routing_entry *)malloc( sizeof(struct routing_entry) );
+ 
+    strcpy( node->destination_canonical_ip_address, destination_canonical_ip_address );
+    strcpy( node->next_hop_node_ethernet_address, next_hop_node_ethernet_address );
+    strcpy( node->outgoing_interface_index, outgoing_interface_index );
+    node->number_of_hops_to_destination = number_of_hops_to_destination;
+
+    if( rt_head == NULL )
+    {
+      rt_head = node;
+      rt_head->next = NULL;			
+    } 
+    else if( rt_head->next == NULL )
+    {
+      rt_head->next = node;
+      node->next = NULL;			
+    } 
+    else
+    {
+      rt_tmp = rt_head->next;       
+      rt_head->next = node;
+      node->next = rt_tmp;            
+    } 
+ 	return;
+ }
+
+struct routing_entry * routing_table_lookup( char * destination_canonical_ip_address )
+{
+	struct routing_entry *node; 	
+
+	node = rt_head;
+	while( node != NULL )
+	{
+		if( strcmp( node->destination_canonical_ip_address, destination_canonical_ip_address ) == 0 )
+		{
+			return node;
+		}	
+		node = node->next;
+	}
+	return NULL;	
+}
+
+int routing_table_delete_entry( char * destination_canonical_ip_address )
+{
+	struct routing_entry *node; 	
+	struct routing_entry *prev; 	
+
+	node = rt_head; 
+	while( node != NULL )	
+	{
+		if( strcmp( node->destination_canonical_ip_address, destination_canonical_ip_address ) == 0 )
+		{
+			//delete logic goes here.
+			prev->next = node->next;
+			node->next = NULL;
+			free(node);	
+		}	
+		prev = node;
+		node = node->next;
+	}	
+	return -1;
+}
+
+void print_routing_table()
+{
+	struct routing_entry *node; 	
+
+	node = rt_head;
+	while( node != NULL )
+	{
+		printf("-->%s,%s,%s", node->destination_canonical_ip_address,node->next_hop_node_ethernet_address,node->outgoing_interface_index );
+		node = node->next;
+	}
+	printf("\n");
+	return;	
+}
+
+void print_mapping()
+{
+	struct port_sunpath_mapping_entry *node; 	
+
+	node = psm_head;
+	while( node != NULL )
+	{
+	printf("tsete1");
+	
+		printf("-->%s,%d", node->sunpath,node->port );
+		node = node->next;
+	}
+	printf("\n");
+	return;	
+}
+
+
 
 /*
 ROUTING TABLE 
