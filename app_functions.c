@@ -46,7 +46,7 @@ int msg_recv( int sockfd_for_read,char *message_received,
     printf("reading from socket : %d\n",sockfd_for_read );
 
   //  Listen(sockfd_for_read, LISTENQ);
-    n=recvfrom(sockfd_for_read,str_from_sock,MAXLINE,0,&odraddr,sizeof(odraddr));
+    n = recvfrom( sockfd_for_read,str_from_sock,MAXLINE,0,&odraddr,sizeof(odraddr) );
     printf("%d\n", n);
     FD_ZERO(&rset);
     //maxfdp1 = max(sockfd_for_read, udpfd) + 1;

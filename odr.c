@@ -15,7 +15,7 @@ struct routing_entry
 	char next_hop_node_ethernet_address[100];
 	char outgoing_interface_index[100];
 	int number_of_hops_to_destination;
-	int made_or_last_reconfirmed_or_updated_timestamp;
+	struct timeval made_or_last_reconfirmed_or_updated_timestamp;
 	struct routing_entry * next;
 
 }*rt_head, *rt_tmp;
@@ -214,9 +214,8 @@ struct req_msgs
 };
 
 
-int check_if_route_exists(char * destination_canonical_ip_presentation_format,routing_entry *existing_entry);	
-routing_entry routing_table[ROUTING_BUF_SIZE];
-routing_entry recv_ODR();
+struct routing_entry * check_if_route_exists( char * destination_canonical_ip_presentation_format );
+//routing_entry recv_ODR();
 long staleness_param;
 
 
@@ -237,7 +236,7 @@ int main(int argc, char const *argv[])
 	char*	 message_to_be_sent;
 	int	 route_rediscovery_flag;
 	struct req_msgs RREQ,RREP;
-	routing_entry existing_entry;
+	struct routing_entry existing_entry;
 	struct req_msgs req_type;
 
 	if(argc<2)
@@ -437,7 +436,8 @@ Also note that ODR at the client node increments the broadcast_id every time it 
 		        msg_fields[i] = strtok(NULL, "|"); //continue to tokenize the string
 		    }
 		    
-		    for(j = 0; j <= i-1; j++) {
+		    for(j = 0; j <= i-1; j++) 
+		    {
 		        printf("%s\n", msg_fields[j]); //print out all of the tokens
 		    }
 		    
@@ -450,8 +450,9 @@ Also note that ODR at the client node increments the broadcast_id every time it 
 			
 			if(!route_rediscovery_flag)
 			{
-				route_exists=check_if_route_exists(destination_canonical_ip_presentation_format,&existing_entry); //pass address of existing_entry so that its value can be set inside the function
-			}else
+				route_exists=check_if_route_exists(destination_canonical_ip_presentation_format ); //pass address of existing_entry so that its value can be set inside the function
+			}
+			else
 			{	
 				route_exists=0;
 			}
@@ -642,6 +643,37 @@ long timevaldiff(struct timeval *starttime, struct timeval *finishtime)
 	return msec;
 }
 
+struct routing_entry * check_if_route_exists( char * destination_canonical_ip_presentation_format )
+{
+  	long msec;
+	int count=0;
+	int route_found=0;
+	struct timeval curr_time_ms; 
+	struct routing_entry * node; 
+	
+	node = routing_table_lookup( destination_canonical_ip_presentation_format );
+	
+	if( node != NULL )
+	{
+			gettimeofday(&curr_time_ms, NULL);
+		  	msec = timevaldiff( &(node->made_or_last_reconfirmed_or_updated_timestamp), &curr_time_ms );
+				
+			if(msec >= staleness_param )
+			{
+				printf("Time diff : %ld\n", msec);
+				routing_table_delete_entry( destination_canonical_ip_presentation_format );
+			}
+			else
+			{
+				route_found = 1;
+				node->made_or_last_reconfirmed_or_updated_timestamp = curr_time_ms;
+				return node; 
+			}
+	}
+	return NULL;
+}
+
+/*
 int check_if_route_exists(char * destination_canonical_ip_presentation_format,routing_entry *existing_entry)
 {
   	long msec;
@@ -677,12 +709,13 @@ int check_if_route_exists(char * destination_canonical_ip_presentation_format,ro
 	return route_found;
 
 }
+*/
 
-routing_entry recv_ODR()
-{
-	routing_entry entry;
-	return entry;
-}
+//routing_entry recv_ODR()
+//{
+//	struct routing_entry entry;
+//	return entry;
+//}
 /*
 A type 2, application payload, message needs to contain the following type of information :
 

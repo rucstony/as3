@@ -40,7 +40,7 @@ int main()
 	char route_rediscovery_flag[]="0";
 	
 	sockfd = socket(AF_LOCAL, SOCK_DGRAM, 0);
-printf("%d\n",sockfd );
+	printf("%d\n",sockfd );
 	bzero(&servaddr, sizeof(servaddr));
 	servaddr.sun_family = AF_LOCAL;
 	strcpy(servaddr.sun_path, UNIXDG_PATH);
