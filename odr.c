@@ -224,10 +224,11 @@ int main(int argc, char const *argv[])
 	struct hwa_info	*hwa, *hwahead;
 	struct sockaddr	*sa;
 	char   *ptr;
-	int    i, j, prflag,route_exists,broadcast_id,n;
+	int    i, j, prflag,route_exists,broadcast_id,n,s,len;
 	int packet_socket;
 	int					sockfd;
 	struct sockaddr_un	cliaddr, servaddr;
+		struct sockaddr_in addr2;
 	char data_stream[MAXLINE];
 	char *msg_fields[MAXLINE];
 	char str_from_sock[MAXLINE], source_addr[INET_ADDRSTRLEN];
@@ -446,7 +447,21 @@ Also note that ODR at the client node increments the broadcast_id every time it 
 			 destination_port_number=atoi(msg_fields[1]);
 			 message_to_be_sent=msg_fields[2];
 			 route_rediscovery_flag=atoi(msg_fields[3]);
-			 
+			 //finding source address
+			s = Socket(AF_INET, SOCK_DGRAM, 0);
+			Connect(s, destination_canonical_ip_presentation_format, sizeof(destination_canonical_ip_presentation_format));
+			/* kernel chooses correct local address for dest */
+			len = sizeof(addr2);
+		    getsockname(sockfd, (SA *) &addr2, &len);
+
+			if (addr2.sin_addr.s_addr == htonl(INADDR_ANY))
+				err_quit("Can't determine local address - use -l\n");
+			else
+			{
+			inet_ntop(AF_INET,addr2.sin_addr.s_addr,source_addr,INET_ADDRSTRLEN);
+     		printf("source_addr: %s\n", source_addr);
+     		}
+			close(s);
 			
 			if(!route_rediscovery_flag)
 			{
