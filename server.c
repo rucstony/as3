@@ -39,18 +39,21 @@ int main()
 	char route_rediscovery_flag[]="0";
 	
 	sockfd = socket(AF_LOCAL, SOCK_DGRAM, 0);
-
+printf("%d\n",sockfd );
 	bzero(&servaddr, sizeof(servaddr));
 	servaddr.sun_family = AF_LOCAL;
 	strcpy(servaddr.sun_path, UNIXDG_PATH);
 
 	bind(sockfd, (SA *) &servaddr, sizeof(servaddr));
-
-	gethostname( server_vm, sizeof( server_vm) );
-        
+	printf("bind error for host: %s",hstrerror(h_errno));	
+	
+    printf("%d gethostname done:  %s server_vm\n",gethostname( server_vm, sizeof( server_vm) ), server_vm);    
 	while(1)
 	{
+		printf("in loop\n");
         msg_recv( sockfd, message_received, source_canonical_ip_presentation_format, source_port_number);
+
+        printf("in loop: msg_recv done\n");
 		retrieveHostName( source_canonical_ip_presentation_format, client_vm );
 		printf("Server at node %s responding to request from  %s\n", server_vm, client_vm );
         msg_send(  sockfd,  source_canonical_ip_presentation_format, "72217",  "message_to_be_sent(from-server)", route_rediscovery_flag );

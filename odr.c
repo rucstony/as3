@@ -52,7 +52,7 @@ int main(int argc, char const *argv[])
 	struct hwa_info	*hwa, *hwahead;
 	struct sockaddr	*sa;
 	char   *ptr;
-	int    i, j, prflag,route_exists,broadcast_id;
+	int    i, j, prflag,route_exists,broadcast_id,n;
 	int packet_socket;
 	int					sockfd;
 	struct sockaddr_un	cliaddr, servaddr;
@@ -212,7 +212,7 @@ The ODR process also creates a domain datagram socket for communication with app
 	strcpy(servaddr.sun_path, UNIXDG_PATH);
 
 	bind(sockfd, (SA *) &servaddr, sizeof(servaddr));
-
+	printf("socket bound %d\n", sockfd);
 
 
 
@@ -250,54 +250,56 @@ ODR will have to take care not to treat these copies as new incoming RREQs.
 
 Also note that ODR at the client node increments the broadcast_id every time it issues a new RREQ for any destination node. 
 */
-
-	while(fgets(sockfd,data_stream,MAXLINE)!=NULL) //data will be written into sockfd when client msg_send()s
+	while(1)
 	{
-
-		msg_fields[0] = strtok(str_from_sock, "|"); //get pointer to first token found and store in 0
-	                                       //place in array
-	    while(msg_fields[i]!= NULL) 
-	    {   //ensure a pointer was found
-	        i++;
-	        msg_fields[i] = strtok(NULL, "|"); //continue to tokenize the string
-	    }
-	    
-	    for(j = 0; j <= i-1; j++) {
-	        printf("%s\n", msg_fields[j]); //print out all of the tokens
-	    }
-	    
-		
-		 destination_canonical_ip_presentation_format=msg_fields[0];
-		 destination_port_number=atoi(msg_fields[1]);
-		 message_to_be_sent=msg_fields[2];
-		 route_rediscovery_flag=atoi(msg_fields[3]);
-		 
-		
-		if(!route_rediscovery_flag)
+		if((n=read(sockfd,data_stream,MAXLINE))>0) //data will be written into sockfd when client msg_send()s
 		{
-			route_exists=check_if_route_exists(destination_canonical_ip_presentation_format,&existing_entry); //pass address of existing_entry so that its value can be set inside the function
-		}else
-		{	
-			route_exists=0;
-		}
+			printf("data_stream: %s\n",data_stream );
 
-		if(route_exists)
-		{
-			//send_RREP(existing_entry);
-
-
-		}else
-		{
+			msg_fields[0] = strtok(str_from_sock, "|"); //get pointer to first token found and store in 0
+		                                       //place in array
+		    while(msg_fields[i]!= NULL) 
+		    {   //ensure a pointer was found
+		        i++;
+		        msg_fields[i] = strtok(NULL, "|"); //continue to tokenize the string
+		    }
+		    
+		    for(j = 0; j <= i-1; j++) {
+		        printf("%s\n", msg_fields[j]); //print out all of the tokens
+		    }
+		    
 			
-			strcpy(RREQ.source_addr,source_addr);
-			RREQ.broadcast_id=broadcast_id++;//incremented every time the source issues new RREQ
-			strcpy(RREQ.destination_canonical_ip_address,destination_canonical_ip_presentation_format);
-			RREQ.number_of_hops_to_destination=0; //sending RREQ from source
-			RREQ.control_msg_type=1; //(RREQ = 1)
-			//send_RREQ(RREQ);
-		}
-	}
+			 destination_canonical_ip_presentation_format=msg_fields[0];
+			 destination_port_number=atoi(msg_fields[1]);
+			 message_to_be_sent=msg_fields[2];
+			 route_rediscovery_flag=atoi(msg_fields[3]);
+			 
+			
+			if(!route_rediscovery_flag)
+			{
+				route_exists=check_if_route_exists(destination_canonical_ip_presentation_format,&existing_entry); //pass address of existing_entry so that its value can be set inside the function
+			}else
+			{	
+				route_exists=0;
+			}
 
+			if(route_exists)
+			{
+				//send_RREP(existing_entry);
+
+
+			}else
+			{
+				
+				strcpy(RREQ.source_addr,source_addr);
+				RREQ.broadcast_id=broadcast_id++;//incremented every time the source issues new RREQ
+				strcpy(RREQ.destination_canonical_ip_address,destination_canonical_ip_presentation_format);
+				RREQ.number_of_hops_to_destination=0; //sending RREQ from source
+				RREQ.control_msg_type=1; //(RREQ = 1)
+				//send_RREQ(RREQ);
+			}
+		}
+	}	
 /*
 RECIEVING RREQs AND GENERATING RREPs
 When a RREQ is received, ODR has to generate a RREP if it is at the destination node, or if it is at an intermediate

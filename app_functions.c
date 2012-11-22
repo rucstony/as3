@@ -9,13 +9,19 @@ void msg_send( int sockfd_for_write,
                char *message_to_be_sent, 
                char *route_rediscovery_flag )
 {
+    struct sockaddr_un  odraddr;  
     char output_to_sock[MAXLINE];
+   
+    bzero(&odraddr, sizeof(odraddr)); /* fill in server's address */
+    odraddr.sun_family = AF_LOCAL;
+    strcpy(odraddr.sun_path, UNIXDG_PATH);
+
     sprintf(output_to_sock,"%s|%s|%s|%s\n", destination_canonical_ip_presentation_format, 
                                           destination_port_number,
                                           message_to_be_sent,
                                           route_rediscovery_flag);
     printf("%s\n", output_to_sock);
-    write(sockfd_for_write,output_to_sock,sizeof(output_to_sock));
+    sendto(sockfd_for_write,output_to_sock,strlen(output_to_sock),0,&odraddr,sizeof(odraddr));
 }
 
 /*
@@ -25,19 +31,28 @@ int msg_recv( int sockfd_for_read,char *message_received,
                char *source_canonical_ip_presentation_format, 
                char  *source_port_number )
 {
+
     char str_from_sock[MAXLINE];
     char *msg_fields[MAXLINE];
+    struct sockaddr_un  odraddr;  
     int i=0,j,nready,n;
     fd_set        rset;
+
+    bzero(&odraddr, sizeof(odraddr)); /* fill in server's address */
+    odraddr.sun_family = AF_LOCAL;
+    strcpy(odraddr.sun_path, UNIXDG_PATH);
+    //connect(sockfd_for_read, (struct sockaddr *) &odraddr, sizeof(odraddr));
+    printf("connect: %d\n",h_errno);
     printf("reading from socket : %d\n",sockfd_for_read );
 
   //  Listen(sockfd_for_read, LISTENQ);
-
+    n=recvfrom(sockfd_for_read,str_from_sock,MAXLINE,0,&odraddr,sizeof(odraddr));
+    printf("%d\n", n);
     FD_ZERO(&rset);
     //maxfdp1 = max(sockfd_for_read, udpfd) + 1;
     for ( ; ; ) 
     {
-    //    printf("in loop...\n" );
+       // printf("in loop...\n" );
         FD_SET(sockfd_for_read, &rset);
        
         if ( (nready = select(sockfd_for_read + 1, &rset, NULL, NULL, NULL)) < 0) {
@@ -51,9 +66,9 @@ int msg_recv( int sockfd_for_read,char *message_received,
         {
             
             //printf("in FD_ISSET\n");
-            if((n=read(sockfd_for_read,str_from_sock,MAXLINE))>0)
+            if((n=recvfrom(sockfd_for_read,str_from_sock,MAXLINE,0,&odraddr,sizeof(odraddr)))>0)
             {
-               // printf("fgets done..\n");
+                printf("fgets done..\n");
                 printf("%s\n", str_from_sock);
                 msg_fields[0] = strtok(str_from_sock, "|"); //get pointer to first token found and store in 0
                 while(msg_fields[i]!= NULL) 

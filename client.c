@@ -26,11 +26,12 @@ int main(int argc, char **argv)
     strcpy(cliaddr.sun_path, template);
     //sockfd = socket(AF_LOCAL, SOCK_STREAM, 0);
 
+
     unlink(argv[1]);        /* OK if this fails */
 
     
     bind(sockfd, (SA *) &cliaddr, SUN_LEN(&cliaddr));
-
+    connect(sockfd, (struct sockaddr *) &cliaddr, sizeof(cliaddr));
     len = sizeof(addr2);
     getsockname(sockfd, (SA *) &addr2, &len);
     printf("bound name = %s, returned len = %d template= %s \n", addr2.sun_path, len,template);
@@ -78,7 +79,7 @@ int main(int argc, char **argv)
                  
         printf("Client at node %s sending request to server at  %s\n", client_vm, server_vm);
         retrieveDestinationCanonicalIpPresentationFormat(server_vm, destination_canonical_ip_presentation_format);      
-     //   strcpy(message_to_be_sent,"trace message\n");
+         //   strcpy(message_to_be_sent,"trace message\n");
 
         msg_send( sockfd,  destination_canonical_ip_presentation_format, "72217",  "message_to_be_sent", route_rediscovery_flag );
 
