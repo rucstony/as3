@@ -55,7 +55,7 @@ prhwaddrs.o: prhwaddrs.c
 	${CC} ${FLAGS} -c prhwaddrs.c
 
 odr: odr.o get_hw_addrs.o prhwaddrs.o
-	${CC} ${FLAGS} -o odr odr.o get_hw_addrs.o prhwaddrs.o ${LIBS}
+	${CC} ${FLAGS} -o odr odr.o get_hw_addrs.o prhwaddrs.o app_functions.o ${LIBS}
 odr.o: odr.c
 	${CC} ${CFLAGS} -c odr.c
 	

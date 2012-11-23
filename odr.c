@@ -213,6 +213,7 @@ struct req_msgs
 	int number_of_hops_to_destination;
 	int control_msg_type; //(RREQ or RREP)
 	int RREP_sent_flag;
+	int forced_discovery;
 };
 
 
@@ -228,6 +229,8 @@ int main(int argc, char const *argv[])
 	char   *ptr;
 	int    i, j, prflag,route_exists,broadcast_id,n,s,len,clilen,pathlen;
 	int packet_socket;
+	int nready , odrlen;
+    struct sockaddr procaddr;
 	int					sockfd;
 	struct sockaddr_un	cliaddr, servaddr;
 	struct sockaddr_un  odraddr;  
@@ -242,7 +245,9 @@ int main(int argc, char const *argv[])
 	struct req_msgs RREQ,RREP;
 	struct routing_entry existing_entry;
 	struct req_msgs req_type;
-
+	struct req_msgs recvd_packet;
+	int maxfdp1;
+	fd_set rset;
 	if(argc<2)
 	{
 		printf("Invalid args: ODR <Staleness parameter in seconds>\n");
@@ -278,7 +283,7 @@ of an Ethernet 802.3 frame.
 */
 
 	//packet_socket = socket(PF_PACKET, int socket_type, int protocol);
-	packet_socket = socket(PF_PACKET, SOCK_RAW, htonl(PROTOCOL_VALUE));
+	
 
 /*
 It uses get_hw_addrs (available to you on minix in ~cse533/Asgn3_code) to obtain the index, and associated (unicast) IP 
@@ -383,7 +388,7 @@ mind that the field values in that header have to be in network order.
 The ODR process also creates a domain datagram socket for communication with application processes
  at the node, and binds the socket to a ‘well known’ sun_path name for the ODR service.
 */
-
+ 	packet_socket = socket(PF_PACKET, SOCK_RAW, htonl(PROTOCOL_VALUE));
 
 	sockfd = socket(AF_LOCAL, SOCK_DGRAM, 0);
 	unlink(UNIXDG_PATH);
@@ -397,11 +402,148 @@ The ODR process also creates a domain datagram socket for communication with app
 
 
    
-    bzero(&odraddr, sizeof(odraddr)); /* fill in server's address */
-    odraddr.sun_family = AF_LOCAL;
-    strcpy(odraddr.sun_path, UNIX_SERV_PATH);
-	sendto(sockfd,"hello\n",10,0,&odraddr,sizeof(odraddr));
-    printf("sendto : %s\n", hstrerror(h_errno));
+    
+	//sendto(sockfd,"hello\n",10,0,&odraddr,sizeof(odraddr));
+    //printf("sendto : %s\n", hstrerror(h_errno));
+
+    FD_ZERO(&rset);
+
+
+    maxfdp1 = max(packet_socket, sockfd) + 1;
+    for ( ; ; ) 
+    {
+       // printf("in loop...\n" );
+        FD_SET(packet_socket, &rset);
+        FD_SET(sockfd, &rset);
+        if ( (nready = select(maxfdp1 + 1, &rset, NULL, NULL, NULL)) < 0) {
+            if (errno == EINTR)
+              continue;   /* back to for() */
+            else
+              err_sys("select error");
+        }
+
+        if (FD_ISSET(sockfd, &rset)) 
+        {
+            
+            //printf("in FD_ISSET\n");
+            if((n=recvfrom(sockfd,data_stream,MAXLINE,0,&procaddr,sizeof(procaddr)))>0)
+            {
+				printf("data_stream: %s\n",data_stream );
+
+				msg_fields[0] = strtok(data_stream, "|"); //get pointer to first token found and store in 0
+			    i=0;                                   //place in array
+			    while(msg_fields[i]!= NULL) 
+			    {   //ensure a pointer was found
+			       
+			        i++;
+			        msg_fields[i] = strtok(NULL, "|"); //continue to tokenize the string
+			    }
+			    			
+				 destination_canonical_ip_presentation_format=msg_fields[0];
+				 destination_port_number=atoi(msg_fields[1]);
+				 message_to_be_sent=msg_fields[2];
+				 route_rediscovery_flag=atoi(msg_fields[3]);
+				
+				if(!route_rediscovery_flag)
+				{
+					printf("checking entry for `%s` in routing table  \n", destination_canonical_ip_presentation_format);
+					route_exists=check_if_route_exists(destination_canonical_ip_presentation_format ); //pass address of existing_entry so that its value can be set inside the function
+				}
+				else
+				{	
+					route_exists=0;
+
+				}
+
+				if(route_exists)
+				{
+					printf("Route found! \n SEND RREP\n");
+					//send_RREP(existing_entry);
+					//if(source not in routing list )
+					printf("Send RREQ to others to notify of new route \n SEND RREQ\n");
+
+				}else
+				{
+					printf("Route not found..\n");
+					strcpy(RREQ.source_addr,source_addr);
+					broadcast_id++;
+					RREQ.broadcast_id = broadcast_id;//incremented every time the source issues new RREQ
+					strcpy(RREQ.destination_canonical_ip_address,destination_canonical_ip_presentation_format);
+					RREQ.number_of_hops_to_destination=0; //sending RREQ from source
+					RREQ.control_msg_type=1; //(RREQ = 1)
+					//send_RREQ(RREQ);
+				}
+			}
+				
+        }else if(FD_ISSET(packet_socket,&rset))
+        {
+        	odrlen=sizeof(odraddr);
+	        if((n=recvfrom(packet_socket,str_from_sock,MAXLINE,0,(SA *)&odraddr,&odrlen))>0)
+	        {
+	           
+	            printf("%s\n", str_from_sock);
+	            //recvd_packet = processPacket(str_from_sock);
+
+	            if(recvd_packet.control_msg_type==0) //RREQ
+	            {
+	            	if(strcmp(recvd_packet.destination_canonical_ip_address,source_addr)==0)
+	            	{
+	            		//odr is at the destination node 
+	            		msg_send( sockfd,  recvd_packet.destination_canonical_ip_address, "0",  message_to_be_sent, recvd_packet.forced_discovery);
+        				
+	            	}else
+	            	{
+
+		            	if(!recvd_packet.forced_discovery)
+						{
+							printf("checking entry for `%s` in routing table  \n", destination_canonical_ip_presentation_format);
+							route_exists=check_if_route_exists(destination_canonical_ip_presentation_format ); //pass address of existing_entry so that its value can be set inside the function
+						}
+						else
+						{	
+							route_exists=0;
+
+						}
+
+						if(route_exists)
+						{
+							printf("Route found! \n SEND RREP\n");
+							 
+		            		if(!recvd_packet.RREP_sent_flag)
+		            		{
+		            			printf("RREP already sent for this route\n");
+		            			//send_RREP(existing_entry);	
+		            		}
+
+
+							//if(source not in routing list )
+							{
+								printf("Send RREQ to others to notify of new route \n SEND RREQ\n");
+								//send_RREQ(RREQ);
+							}
+							
+						}else
+						{
+							printf("Route not found..\n");
+							//send_RREQ(recvd_packet);
+						}
+					
+		         }
+		     	}
+	         	else if(recvd_packet.control_msg_type==1) //RREP
+	            {
+	            	recvd_packet.forced_discovery=1;
+	            	//send_RREP(existing_entry);	
+	            }else//message
+	            {
+
+	            }
+		     }
+		    }
+	       
+	   
+    
+  }
 
 /*
 
@@ -437,98 +579,8 @@ ODR will have to take care not to treat these copies as new incoming RREQs.
 
 Also note that ODR at the client node increments the broadcast_id every time it issues a new RREQ for any destination node. 
 */
-printf("RECIEVING\n");
+//printf("RECIEVING\n");
 
-//n = recvfrom( sockfd,data_stream,MAXLINE,0,&odraddr,sizeof(odraddr) );
-//printf("%s\n",data_stream );
-	while(1)
-	{
-		printf("in loop\n");
-		clilen=sizeof(cliaddr);
-		if((n = recvfrom( sockfd,data_stream,MAXLINE,0,(SA *)&cliaddr,&clilen ))>0) //data will be written into sockfd when client msg_send()s
-		{
-			pathlen=sizeof(cliaddr.sun_path);
-			cliaddr.sun_path[pathlen]=0;
-			printf("sun_path: %d\n",cliaddr.sun_family );
-			printf("sun_path: %s\n",cliaddr.sun_path );
-			printf("sun_path len: %d\n",clilen);
-			
-
-			//s = Socket(AF_INET, SOCK_DGRAM, 0);
-			//connect(s, (SA  *) &cliaddr, sizeof(cliaddr));
-			//	len = sizeof(addr2);
-		    //getsockname(s, (SA *) &addr2, &len);
-		   // printf("addr2.sun_path= %s \n", addr2.sun_path);
-			printf("data_stream: %s\n",data_stream );
-
-			msg_fields[0] = strtok(data_stream, "|"); //get pointer to first token found and store in 0
-		    i=0;                                   //place in array
-		    while(msg_fields[i]!= NULL) 
-		    {   //ensure a pointer was found
-		       
-		        i++;
-		        msg_fields[i] = strtok(NULL, "|"); //continue to tokenize the string
-		    }
-		    
-		    for(j = 0; j <= i-1; j++) 
-		    {
-		    	//printf("print %d\n");
-		        printf("%s\n", msg_fields[j]); //print out all of the tokens
-		    }
-		    			
-			 destination_canonical_ip_presentation_format=msg_fields[0];
-			 destination_port_number=atoi(msg_fields[1]);
-			 message_to_be_sent=msg_fields[2];
-			 route_rediscovery_flag=atoi(msg_fields[3]);
-			 
-			 /*finding source address
-			s = Socket(AF_INET, SOCK_DGRAM, 0);
-			bzero(&odraddr, sizeof(odraddr)); 
-    		odraddr.sun_family = AF_LOCAL;
-    		strcpy(odraddr.sun_path, UNIXDG_PATH);
-    //connect(sockfd_for_read, (struct sockaddr *) &odraddr, sizeof(odraddr)
-			Connect(s, destination_canonical_ip_presentation_format, sizeof(destination_canonical_ip_presentation_format));
-			
-			len = sizeof(addr2);
-		    getsockname(sockfd, (SA *) &addr2, &len);
-
-			if (addr2.sin_addr.s_addr == htonl(INADDR_ANY))
-				err_quit("Can't determine local address - use -l\n");
-			else
-			{
-			inet_ntop(AF_INET,addr2.sin_addr.s_addr,source_addr,INET_ADDRSTRLEN);
-     		printf("source_addr: %s\n", source_addr);
-     		}
-			close(s);
-			*/
-			/*
-			if(!route_rediscovery_flag)
-			{
-				route_exists=check_if_route_exists(destination_canonical_ip_presentation_format ); //pass address of existing_entry so that its value can be set inside the function
-			}
-			else
-			{	
-				route_exists=0;
-			}
-
-			if(route_exists)
-			{
-				//send_RREP(existing_entry);
-
-
-			}else
-			{
-				
-				strcpy(RREQ.source_addr,source_addr);
-				RREQ.broadcast_id=broadcast_id++;//incremented every time the source issues new RREQ
-				strcpy(RREQ.destination_canonical_ip_address,destination_canonical_ip_presentation_format);
-				RREQ.number_of_hops_to_destination=0; //sending RREQ from source
-				RREQ.control_msg_type=1; //(RREQ = 1)
-				//send_RREQ(RREQ);
-			}
-			*/
-		}
-	}	
 /*
 RECIEVING RREQs AND GENERATING RREPs
 When a RREQ is received, ODR has to generate a RREP if it is at the destination node, or if it is at an intermediate
