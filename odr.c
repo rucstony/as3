@@ -251,10 +251,12 @@ void sendODRframe( int s , struct odr_frame * populated_odr_frame , char * sourc
 	int send_result = 0;
 
 	/*our MAC address*/
-	unsigned char src_mac[6] = {0x00, 0x01, 0x02, 0xFA, 0x70, 0xAA};
+
+	unsigned char src_mac[6] = {0x00, 0x0c, 0x29, 0x11, 0x58, 0xa2};
 
 	/*Broadcast MAC address*/
-	unsigned char dest_mac[6] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
+	//unsigned char dest_mac[6] = {0x00, 0x0c, 0x29, 0x24, 0x8f, 0x70};
+	unsigned char dest_mac[6] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
 printf("sending frame on socket: %d\n",s );
 	/*prepare sockaddr_ll*/
 
@@ -278,12 +280,12 @@ printf("sending frame on socket: %d\n",s );
 	socket_address.sll_halen    = ETH_ALEN;		
 	
 	/*MAC - begin*/
-	socket_address.sll_addr[0]  = dest_mac[0];		
-	socket_address.sll_addr[1]  = dest_mac[1];		
-	socket_address.sll_addr[2]  = dest_mac[2];
-	socket_address.sll_addr[3]  = dest_mac[3];
-	socket_address.sll_addr[4]  = dest_mac[4];
-	socket_address.sll_addr[5]  = dest_mac[5];
+	socket_address.sll_addr[0]  = 0xFF;		
+	socket_address.sll_addr[1]  = 0xFF;		
+	socket_address.sll_addr[2]  = 0xFF;
+	socket_address.sll_addr[3]  = 0xFF;
+	socket_address.sll_addr[4]  = 0xFF;
+	socket_address.sll_addr[5]  = 0xFF;
 	/*MAC - end*/
 	socket_address.sll_addr[6]  = 0x00;/*not used*/
 	socket_address.sll_addr[7]  = 0x00;/*not used*/
@@ -291,7 +293,7 @@ printf("sending frame on socket: %d\n",s );
 	/*set the frame header*/
 	memcpy((void*)buffer, (void*)dest_mac, ETH_ALEN);
 	memcpy((void*)(buffer+ETH_ALEN), (void*)src_mac, ETH_ALEN);
-	eh->h_proto = USID_PROTO;
+	eh->h_proto = htons(USID_PROTO);
 	/*fill the frame with some data*/
 	for (j = 0; j < 1500; j++) {
 		data[j] = (unsigned char)((int) (255.0*rand()/(RAND_MAX+1.0)));
@@ -497,7 +499,7 @@ The ODR process also creates a domain datagram socket for communication with app
 	//sendto(sockfd,"hello\n",10,0,&odraddr,sizeof(odraddr));
     //printf("sendto : %s\n", hstrerror(h_errno));
 printf("select...\n");
-    FD_ZERO(&rset);
+   
 printf("select...\n");
 //n=recvfrom(sockfd,data_stream,MAXLINE,0,&procaddr,sizeof(procaddr));
 //printf("%s\n",data_stream );
@@ -505,6 +507,7 @@ printf("select...\n");
     for ( ; ; ) 
     {
         printf("in loop...\n" );
+         FD_ZERO(&rset);
         FD_SET(packet_socket, &rset);
         FD_SET(sockfd, &rset);
         if ( (nready = select(maxfdp1 + 1, &rset, NULL, NULL, NULL)) < 0) {
@@ -576,9 +579,10 @@ printf("select...\n");
 				}
 				*/
 			}//else
-			{
-				printf("receive error : %s\n",hstrerror(h_errno) );
-			}
+			//{
+			//	printf("receive error : %s\n",hstrerror(h_errno) );
+			//}
+
 				
         }else if(FD_ISSET(packet_socket,&rset))
         {

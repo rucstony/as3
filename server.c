@@ -39,7 +39,8 @@ int main()
     char source_canonical_ip_presentation_format[100];
     char source_port_number[10];
 	char route_rediscovery_flag[]="0";
-	
+	time_t ticks;
+	char  buf[100];
 	sockfd = socket(AF_LOCAL, SOCK_DGRAM, 0);
 	printf("%d\n",sockfd );
 	bzero(&servaddr, sizeof(servaddr));
@@ -56,12 +57,18 @@ int main()
 	while(1)
 	{
 		printf("in loop\n");
+		ticks=time(NULL);
+		memset(buf,0,sizeof(buf));
+ 
+		snprintf(buf,sizeof(buf),"%.24s\r\n",ctime(&ticks));
+             printf("Time: %s\n",buf );
         msg_recv( sockfd, message_received, source_canonical_ip_presentation_format, source_port_number);
 
         printf("in loop: msg_recv done\n");
 		retrieveHostName( source_canonical_ip_presentation_format, client_vm );
 		printf("Server at node %s responding to request from  %s\n", server_vm, client_vm );
-        msg_send(  sockfd,  source_canonical_ip_presentation_format, "72217",  "message_to_be_sent(from-server)", route_rediscovery_flag );
+		
+        msg_send(  sockfd,  source_canonical_ip_presentation_format, "72217",  buf, route_rediscovery_flag );
 
 	}
 
