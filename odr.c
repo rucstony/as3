@@ -6,7 +6,7 @@
 #include "unp.h"
 #include <linux/if_ether.h>
 #include <linux/if_arp.h>
-#define USID_PROTO 0x67C6C81
+#define USID_PROTO 0x4481
 #define PROTOCOL_VALUE 108817537
 #define ETH_FRAME_LEN 1514
 #define ROUTING_BUF_SIZE 100
@@ -272,7 +272,7 @@ printf("sending frame on socket: %d\n",s );
 
 	/*index of the network device
 	see full code later how to retrieve it*/
-	socket_address.sll_ifindex  = 2;
+	socket_address.sll_ifindex  = 3;
 
 	/*address length*/
 	socket_address.sll_halen    = ETH_ALEN;		
@@ -478,7 +478,7 @@ mind that the field values in that header have to be in network order.
 The ODR process also creates a domain datagram socket for communication with application processes
  at the node, and binds the socket to a ‘well known’ sun_path name for the ODR service.
 */
- 	packet_socket = socket(PF_PACKET, SOCK_RAW, htonl(USID_PROTO));
+ 	packet_socket = socket(PF_PACKET, SOCK_RAW, htons(USID_PROTO));
 
  	printf("%s\n",hstrerror(h_errno) );
 	sockfd = socket(AF_LOCAL, SOCK_DGRAM, 0);
