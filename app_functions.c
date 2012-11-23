@@ -39,9 +39,9 @@ int msg_recv( int sockfd_for_read,char *message_received,
     int i=0,j,nready,n;
     fd_set        rset;
 
-    bzero(&odraddr, sizeof(odraddr)); /* fill in server's address */
-    odraddr.sun_family = AF_LOCAL;
-    strcpy(odraddr.sun_path, UNIXDG_PATH);
+    //bzero(&odraddr, sizeof(odraddr)); /* fill in server's address */
+    //odraddr.sun_family = AF_LOCAL;
+    //strcpy(odraddr.sun_path, UNIXDG_PATH);
     //connect(sockfd_for_read, (struct sockaddr *) &odraddr, sizeof(odraddr));
    // printf("connect: %d\n",h_errno);
     //printf("reading from socket : %d\n",sockfd_for_read );

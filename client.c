@@ -6,7 +6,7 @@
 
 int main(int argc, char **argv)
 {
-    int                 sockfd;
+    int                 sockfd,l;
     socklen_t           len;
     struct sockaddr_un  cliaddr, addr2, servaddr;
     struct hostent *hptr;
@@ -15,16 +15,23 @@ int main(int argc, char **argv)
     char source_canonical_ip_presentation_format[100];
     char source_port_number[10];
     int fd;
-    char template[] = "/tmp/fileXXXXXX", route_rediscovery_flag[]="0";
+    char template[100], route_rediscovery_flag[]="0";
     char message_to_be_sent[MAXLINE];
-    char destination_canonical_ip_presentation_format[100];
+    char destination_canonical_ip_presentation_format[100],str;
     char server_vm[HOSTNAME_LEN], client_vm[HOSTNAME_LEN];
     
+  //  l=strlen(template);
+    //printf("Previous length : %d\n", l );
+    strcpy(template,"/tmp/fileXXXXXX");
     mkstemp(template);
+    //l=strlen(template);
+    //printf("New length : %d\n", l );
+//template[l]=0;
     bzero(&cliaddr, sizeof(cliaddr));      
     cliaddr.sun_family = AF_LOCAL; 
     sockfd = socket(AF_LOCAL, SOCK_DGRAM, 0); 
-    strcpy(cliaddr.sun_path, template);   
+    strcpy(cliaddr.sun_path, template);
+    printf("sun path %s :  SUN_LEN(&cliaddr) %d \n",cliaddr.sun_path , SUN_LEN(&cliaddr));   
     bind(sockfd, (SA *) &cliaddr, SUN_LEN(&cliaddr));
     len = sizeof(addr2);
     getsockname(sockfd, (SA *) &addr2, &len);
@@ -76,7 +83,8 @@ int main(int argc, char **argv)
          //   strcpy(message_to_be_sent,"trace message\n");
 
         msg_send( sockfd,  destination_canonical_ip_presentation_format, "72217",  "message_to_be_sent", route_rediscovery_flag );
-        printf("message sent\n");
+        
+        
         msg_recv( sockfd, message_received, source_canonical_ip_presentation_format, source_port_number);
 
         retrieveHostName( source_canonical_ip_presentation_format, server_vm );

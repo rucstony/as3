@@ -1,6 +1,7 @@
 #include 	"unp.h"
 #define HOSTNAME_LEN 255
 #define ETH_RUAN537 0x67C6C81
+#define UNIX_SERV_PATH "unixservpath"
 
 /*
 A time server runs on each of the ten vm machines. The client code should also be available on each vm so that it can be
@@ -31,8 +32,8 @@ access the local ODR service directly (somewhat similar, in effect, to the way t
 //The server creates a domain datagram socket.
 int main()
 {
-	int					sockfd;
-	struct sockaddr_un	cliaddr, servaddr;
+	int					sockfd,len;
+	struct sockaddr_un	cliaddr, servaddr,addr2;
     char message_received[MAXLINE];  
     char client_vm[HOSTNAME_LEN], server_vm[HOSTNAME_LEN];
     char source_canonical_ip_presentation_format[100];
@@ -43,9 +44,12 @@ int main()
 	printf("%d\n",sockfd );
 	bzero(&servaddr, sizeof(servaddr));
 	servaddr.sun_family = AF_LOCAL;
-	strcpy(servaddr.sun_path, UNIXDG_PATH);
+	strcpy(servaddr.sun_path, "UNIX_SERV_PATH");
 
 	bind(sockfd, (SA *) &servaddr, sizeof(servaddr));
+	 len = sizeof(addr2);
+    getsockname(sockfd, (SA *) &addr2, &len);
+    printf("bound name = %s, returned len = %d servaddr.sun_path= %s \n", addr2.sun_path, len);
 	printf("bind error for host: %s",hstrerror(h_errno));	
 	
     printf("%d gethostname done:  %s server_vm\n",gethostname( server_vm, sizeof( server_vm) ), server_vm);    
@@ -60,6 +64,8 @@ int main()
         msg_send(  sockfd,  source_canonical_ip_presentation_format, "72217",  "message_to_be_sent(from-server)", route_rediscovery_flag );
 
 	}
+
+
 
 	return 0;
 }

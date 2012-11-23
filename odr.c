@@ -7,6 +7,7 @@
 #define PROTOCOL_VALUE 108817537
 #define ROUTING_BUF_SIZE 100
 #define UNIXDG_PATH "testpath"
+#define UNIX_SERV_PATH "unixservpath"
 
 
 struct routing_entry 
@@ -225,7 +226,7 @@ int main(int argc, char const *argv[])
 	struct hwa_info	*hwa, *hwahead;
 	struct sockaddr	*sa;
 	char   *ptr;
-	int    i, j, prflag,route_exists,broadcast_id,n,s,len;
+	int    i, j, prflag,route_exists,broadcast_id,n,s,len,clilen,pathlen;
 	int packet_socket;
 	int					sockfd;
 	struct sockaddr_un	cliaddr, servaddr;
@@ -250,7 +251,11 @@ int main(int argc, char const *argv[])
 	{
 		staleness_param = atoi( argv[1] );
 		printf( "Staleness parameter is : %ld\n", staleness_param );
+		return 0;
+
 	}
+	//insert server entry
+	//insert_to_port_sunpath_mapping( char * sunpath, int port );
 /*
 The ODR process runs on each of the ten vm machines. It is evoked with a single command line argument which gives a “staleness” time parameter, in seconds.
 */
@@ -391,6 +396,12 @@ The ODR process also creates a domain datagram socket for communication with app
 	//printf("socket bound %d\n", sockfd);
 
 
+   
+    bzero(&odraddr, sizeof(odraddr)); /* fill in server's address */
+    odraddr.sun_family = AF_LOCAL;
+    strcpy(odraddr.sun_path, UNIX_SERV_PATH);
+	sendto(sockfd,"hello\n",10,0,&odraddr,sizeof(odraddr));
+    printf("sendto : %s\n", hstrerror(h_errno));
 
 /*
 
@@ -433,8 +444,21 @@ printf("RECIEVING\n");
 	while(1)
 	{
 		printf("in loop\n");
-		if((n=read(sockfd,data_stream,MAXLINE))>0) //data will be written into sockfd when client msg_send()s
+		clilen=sizeof(cliaddr);
+		if((n = recvfrom( sockfd,data_stream,MAXLINE,0,(SA *)&cliaddr,&clilen ))>0) //data will be written into sockfd when client msg_send()s
 		{
+			pathlen=sizeof(cliaddr.sun_path);
+			cliaddr.sun_path[pathlen]=0;
+			printf("sun_path: %d\n",cliaddr.sun_family );
+			printf("sun_path: %s\n",cliaddr.sun_path );
+			printf("sun_path len: %d\n",clilen);
+			
+
+			//s = Socket(AF_INET, SOCK_DGRAM, 0);
+			//connect(s, (SA  *) &cliaddr, sizeof(cliaddr));
+			//	len = sizeof(addr2);
+		    //getsockname(s, (SA *) &addr2, &len);
+		   // printf("addr2.sun_path= %s \n", addr2.sun_path);
 			printf("data_stream: %s\n",data_stream );
 
 			msg_fields[0] = strtok(data_stream, "|"); //get pointer to first token found and store in 0
@@ -443,21 +467,20 @@ printf("RECIEVING\n");
 		    {   //ensure a pointer was found
 		       
 		        i++;
-		        //printf("spltting\n",i);
 		        msg_fields[i] = strtok(NULL, "|"); //continue to tokenize the string
 		    }
-		    //printf("split over\n");
+		    
 		    for(j = 0; j <= i-1; j++) 
 		    {
 		    	//printf("print %d\n");
 		        printf("%s\n", msg_fields[j]); //print out all of the tokens
 		    }
-		    // printf("print over\n");
-			
+		    			
 			 destination_canonical_ip_presentation_format=msg_fields[0];
 			 destination_port_number=atoi(msg_fields[1]);
 			 message_to_be_sent=msg_fields[2];
 			 route_rediscovery_flag=atoi(msg_fields[3]);
+			 
 			 /*finding source address
 			s = Socket(AF_INET, SOCK_DGRAM, 0);
 			bzero(&odraddr, sizeof(odraddr)); 
