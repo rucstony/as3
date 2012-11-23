@@ -1,6 +1,6 @@
 #include    "unp.h"
 #define HOSTNAME_LEN 255
-
+#define UNIXDG_PATH "testpath"
 //void msg_send( int sockfd_for_write, char *destination_canonical_ip_presentation_format, char *destination_port_number, char *message_to_be_sent, char* route_rediscovery_flag );
 //void msg_recv( int sockfd_for_read,char *message_received,  char *source_canonical_ip_presentation_format, char  *source_port_number);
 
@@ -8,33 +8,27 @@ int main(int argc, char **argv)
 {
     int                 sockfd;
     socklen_t           len;
-    struct sockaddr_un  cliaddr, addr2;
+    struct sockaddr_un  cliaddr, addr2, servaddr;
     struct hostent *hptr;
     char *ptr, **pptr;
     char message_received[MAXLINE];  
     char source_canonical_ip_presentation_format[100];
     char source_port_number[10];
     int fd;
-    char template[] = "fileXXXXXX", route_rediscovery_flag[]="0";
+    char template[] = "/tmp/fileXXXXXX", route_rediscovery_flag[]="0";
     char message_to_be_sent[MAXLINE];
     char destination_canonical_ip_presentation_format[100];
     char server_vm[HOSTNAME_LEN], client_vm[HOSTNAME_LEN];
-    sockfd = mkstemp(template);
-    printf("%d\n",sockfd );
-    bzero(&cliaddr, sizeof(cliaddr));       /* bind an address for us */
-    cliaddr.sun_family = AF_LOCAL;
-    strcpy(cliaddr.sun_path, template);
-    //sockfd = socket(AF_LOCAL, SOCK_STREAM, 0);
-
-
-    unlink(argv[1]);        /* OK if this fails */
-
     
+    mkstemp(template);
+    bzero(&cliaddr, sizeof(cliaddr));      
+    cliaddr.sun_family = AF_LOCAL; 
+    sockfd = socket(AF_LOCAL, SOCK_DGRAM, 0); 
+    strcpy(cliaddr.sun_path, template);   
     bind(sockfd, (SA *) &cliaddr, SUN_LEN(&cliaddr));
-    connect(sockfd, (struct sockaddr *) &cliaddr, sizeof(cliaddr));
     len = sizeof(addr2);
     getsockname(sockfd, (SA *) &addr2, &len);
-    printf("bound name = %s, returned len = %d template= %s \n", addr2.sun_path, len,template);
+    printf("bound name = %s, returned len = %d servaddr.sun_path= %s \n", addr2.sun_path, len,template);
 
 
 /*
@@ -82,7 +76,7 @@ int main(int argc, char **argv)
          //   strcpy(message_to_be_sent,"trace message\n");
 
         msg_send( sockfd,  destination_canonical_ip_presentation_format, "72217",  "message_to_be_sent", route_rediscovery_flag );
-
+        printf("message sent\n");
         msg_recv( sockfd, message_received, source_canonical_ip_presentation_format, source_port_number);
 
         retrieveHostName( source_canonical_ip_presentation_format, server_vm );

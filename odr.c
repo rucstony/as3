@@ -6,6 +6,7 @@
 #include "unp.h"
 #define PROTOCOL_VALUE 108817537
 #define ROUTING_BUF_SIZE 100
+#define UNIXDG_PATH "testpath"
 
 
 struct routing_entry 
@@ -228,6 +229,7 @@ int main(int argc, char const *argv[])
 	int packet_socket;
 	int					sockfd;
 	struct sockaddr_un	cliaddr, servaddr;
+	struct sockaddr_un  odraddr;  
 		struct sockaddr_in addr2;
 	char data_stream[MAXLINE];
 	char *msg_fields[MAXLINE];
@@ -378,14 +380,15 @@ The ODR process also creates a domain datagram socket for communication with app
 */
 
 
-	sockfd = Socket(AF_LOCAL, SOCK_DGRAM, 0);
+	sockfd = socket(AF_LOCAL, SOCK_DGRAM, 0);
+	unlink(UNIXDG_PATH);
 
 	bzero(&servaddr, sizeof(servaddr));
 	servaddr.sun_family = AF_LOCAL;
 	strcpy(servaddr.sun_path, UNIXDG_PATH);
 
-	bind(sockfd, (SA *) &servaddr, sizeof(servaddr));
-	printf("socket bound %d\n", sockfd);
+	bind(sockfd, (SA *) &servaddr, SUN_LEN(&servaddr));
+	//printf("socket bound %d\n", sockfd);
 
 
 
@@ -423,34 +426,46 @@ ODR will have to take care not to treat these copies as new incoming RREQs.
 
 Also note that ODR at the client node increments the broadcast_id every time it issues a new RREQ for any destination node. 
 */
+printf("RECIEVING\n");
+
+//n = recvfrom( sockfd,data_stream,MAXLINE,0,&odraddr,sizeof(odraddr) );
+//printf("%s\n",data_stream );
 	while(1)
 	{
+		printf("in loop\n");
 		if((n=read(sockfd,data_stream,MAXLINE))>0) //data will be written into sockfd when client msg_send()s
 		{
 			printf("data_stream: %s\n",data_stream );
 
-			msg_fields[0] = strtok(str_from_sock, "|"); //get pointer to first token found and store in 0
-		                                       //place in array
+			msg_fields[0] = strtok(data_stream, "|"); //get pointer to first token found and store in 0
+		    i=0;                                   //place in array
 		    while(msg_fields[i]!= NULL) 
 		    {   //ensure a pointer was found
+		       
 		        i++;
+		        //printf("spltting\n",i);
 		        msg_fields[i] = strtok(NULL, "|"); //continue to tokenize the string
 		    }
-		    
+		    //printf("split over\n");
 		    for(j = 0; j <= i-1; j++) 
 		    {
+		    	//printf("print %d\n");
 		        printf("%s\n", msg_fields[j]); //print out all of the tokens
 		    }
-		    
+		    // printf("print over\n");
 			
 			 destination_canonical_ip_presentation_format=msg_fields[0];
 			 destination_port_number=atoi(msg_fields[1]);
 			 message_to_be_sent=msg_fields[2];
 			 route_rediscovery_flag=atoi(msg_fields[3]);
-			 //finding source address
+			 /*finding source address
 			s = Socket(AF_INET, SOCK_DGRAM, 0);
+			bzero(&odraddr, sizeof(odraddr)); 
+    		odraddr.sun_family = AF_LOCAL;
+    		strcpy(odraddr.sun_path, UNIXDG_PATH);
+    //connect(sockfd_for_read, (struct sockaddr *) &odraddr, sizeof(odraddr)
 			Connect(s, destination_canonical_ip_presentation_format, sizeof(destination_canonical_ip_presentation_format));
-			/* kernel chooses correct local address for dest */
+			
 			len = sizeof(addr2);
 		    getsockname(sockfd, (SA *) &addr2, &len);
 
@@ -462,7 +477,8 @@ Also note that ODR at the client node increments the broadcast_id every time it 
      		printf("source_addr: %s\n", source_addr);
      		}
 			close(s);
-			
+			*/
+			/*
 			if(!route_rediscovery_flag)
 			{
 				route_exists=check_if_route_exists(destination_canonical_ip_presentation_format ); //pass address of existing_entry so that its value can be set inside the function
@@ -487,6 +503,7 @@ Also note that ODR at the client node increments the broadcast_id every time it 
 				RREQ.control_msg_type=1; //(RREQ = 1)
 				//send_RREQ(RREQ);
 			}
+			*/
 		}
 	}	
 /*
