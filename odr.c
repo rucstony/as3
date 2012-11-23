@@ -4,7 +4,9 @@
 #include <net/ethernet.h> /* the L2 protocols */
 #include	"hw_addrs.h"
 #include "unp.h"
+#define USID_PROTO 0x67C6C81
 #define PROTOCOL_VALUE 108817537
+#define ETH_FRAME_LEN 1518
 #define ROUTING_BUF_SIZE 100
 #define UNIXDG_PATH "testpath"
 #define UNIX_SERV_PATH "unixservpath"
@@ -221,6 +223,85 @@ struct routing_entry * check_if_route_exists( char * destination_canonical_ip_pr
 //routing_entry recv_ODR();
 long staleness_param;
 
+/*
+	BROADCAST ODR FRAME
+	Straps on the ethernet header to the odr-frame and sends out on broadcast address. (JUST FOR 1 INTERFACE)
+*/
+void sendODRframe( int s , struct odr_frame * populated_odr_frame , char * source_hw_mac_address )
+{
+	/*target address*/
+	struct sockaddr_ll socket_address;
+
+	/*buffer for ethernet frame*/
+	void* buffer = (void*)malloc(ETH_FRAME_LEN);
+	 
+	/*pointer to ethenet header*/
+	unsigned char* etherhead = buffer;
+		
+	/*pointer to userdata in ethernet frame*/
+	unsigned char* data = buffer + 14;
+		
+	/*another pointer to ethernet header*/
+	struct ethhdr *eh = (struct ethhdr *)etherhead;
+	 
+	int send_result = 0;
+
+	/*our MAC address*/
+	unsigned char src_mac[6] = {0x00, 0x01, 0x02, 0xFA, 0x70, 0xAA};
+
+	/*Broadcast MAC address*/
+	unsigned char dest_mac[6] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
+
+	/*prepare sockaddr_ll*/
+
+	/*RAW communication*/
+	socket_address.sll_family   = PF_PACKET;	
+	/*we don't use a protocoll above ethernet layer
+	  ->just use anything here*/
+	socket_address.sll_protocol = htons(ETH_P_IP);	
+
+	/*ARP hardware identifier is ethernet*/
+	socket_address.sll_hatype   = ARPHRD_ETHER;
+		
+	/*target is another host*/
+	socket_address.sll_pkttype  = PACKET_OTHERHOST;
+
+	/*index of the network device
+	see full code later how to retrieve it*/
+	socket_address.sll_ifindex  = 2;
+
+	/*address length*/
+	socket_address.sll_halen    = ETH_ALEN;		
+	
+	/*MAC - begin*/
+	socket_address.sll_addr[0]  = dest_mac[0];		
+	socket_address.sll_addr[1]  = dest_mac[1];		
+	socket_address.sll_addr[2]  = dest_mac[2];
+	socket_address.sll_addr[3]  = dest_mac[3];
+	socket_address.sll_addr[4]  = dest_mac[4];
+	socket_address.sll_addr[5]  = dest_mac[5];
+	/*MAC - end*/
+	socket_address.sll_addr[6]  = 0x00;/*not used*/
+	socket_address.sll_addr[7]  = 0x00;/*not used*/
+
+	/*set the frame header*/
+	memcpy((void*)buffer, (void*)dest_mac, ETH_ALEN);
+	memcpy((void*)(buffer+ETH_ALEN), (void*)src_mac, ETH_ALEN);
+	eh->h_proto = USID_PROTO;
+	/*fill the frame with some data*/
+	for (j = 0; j < 1500; j++) {
+		data[j] = (unsigned char)((int) (255.0*rand()/(RAND_MAX+1.0)));
+	}
+
+	/*send the packet*/
+	send_result = sendto(s, buffer, ETH_FRAME_LEN, 0, 
+		      (struct sockaddr*)&socket_address, sizeof(socket_address));
+	if (send_result == -1){ perror("sendto"); }
+
+}
+
+
+
 
 int main(int argc, char const *argv[])
 {
@@ -248,6 +329,10 @@ int main(int argc, char const *argv[])
 	struct req_msgs recvd_packet;
 	int maxfdp1;
 	fd_set rset;
+	void* buffer = (void*)malloc(ETH_FRAME_LEN); /*Buffer for ethernet frame*/
+	int length = 0; /*length of the received frame*/ 
+
+
 	if(argc<2)
 	{
 		printf("Invalid args: ODR <Staleness parameter in seconds>\n");
@@ -388,7 +473,7 @@ mind that the field values in that header have to be in network order.
 The ODR process also creates a domain datagram socket for communication with application processes
  at the node, and binds the socket to a ‘well known’ sun_path name for the ODR service.
 */
- 	packet_socket = socket(PF_PACKET, SOCK_RAW, htonl(PROTOCOL_VALUE));
+ 	packet_socket = socket(PF_PACKET, SOCK_RAW, htonl(USID_PROTO));
 
 	sockfd = socket(AF_LOCAL, SOCK_DGRAM, 0);
 	unlink(UNIXDG_PATH);
@@ -478,10 +563,13 @@ The ODR process also creates a domain datagram socket for communication with app
         }else if(FD_ISSET(packet_socket,&rset))
         {
         	odrlen=sizeof(odraddr);
-	        if((n=recvfrom(packet_socket,str_from_sock,MAXLINE,0,(SA *)&odraddr,&odrlen))>0)
+
+			
+	        if((n=recvfrom(packet_socket,buffer, ETH_FRAME_LEN, 0, NULL, NULL)>0))
 	        {
 	           
-	            printf("%s\n", str_from_sock);
+	        	if (n == -1) { printf("Error in recieving data from client..\n"); exit(0);}
+	        	else{ printf("Recieved Packet Size : %d\n",n ); }
 	            //recvd_packet = processPacket(str_from_sock);
 
 	            if(recvd_packet.control_msg_type==0) //RREQ
