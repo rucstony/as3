@@ -8,7 +8,7 @@
 #include <linux/if_arp.h>
 #define USID_PROTO 0x67C6C81
 #define PROTOCOL_VALUE 108817537
-#define ETH_FRAME_LEN 1500
+#define ETH_FRAME_LEN 1514
 #define ROUTING_BUF_SIZE 100
 #define UNIXDG_PATH "testpath"
 #define UNIX_SERV_PATH "unixservpath"
@@ -231,6 +231,7 @@ long staleness_param;
 */
 void sendODRframe( int s , struct odr_frame * populated_odr_frame , char * source_hw_mac_address )
 {
+	
 	int j;
 	/*target address*/
 	struct sockaddr_ll socket_address;
@@ -254,7 +255,7 @@ void sendODRframe( int s , struct odr_frame * populated_odr_frame , char * sourc
 
 	/*Broadcast MAC address*/
 	unsigned char dest_mac[6] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
-
+printf("sending frame on socket: %d\n",s );
 	/*prepare sockaddr_ll*/
 
 	/*RAW communication*/
@@ -292,7 +293,7 @@ void sendODRframe( int s , struct odr_frame * populated_odr_frame , char * sourc
 	memcpy((void*)(buffer+ETH_ALEN), (void*)src_mac, ETH_ALEN);
 	eh->h_proto = USID_PROTO;
 	/*fill the frame with some data*/
-	for (j = 0; j < 1482; j++) {
+	for (j = 0; j < 1500; j++) {
 		data[j] = (unsigned char)((int) (255.0*rand()/(RAND_MAX+1.0)));
 	}
 
@@ -300,6 +301,7 @@ void sendODRframe( int s , struct odr_frame * populated_odr_frame , char * sourc
 	send_result = sendto(s, buffer, ETH_FRAME_LEN, 0, 
 		      (struct sockaddr*)&socket_address, sizeof(socket_address));
 	if (send_result == -1){ perror("sendto"); }
+
 
 }
 
@@ -511,14 +513,15 @@ printf("select...\n");
             else
               err_sys("select error");
         }
-
+        printf("nready...%d\n",nready);
         if (FD_ISSET(sockfd, &rset)) 
         {
+        	printf("Receiving from client/server..%d bytes.\n", n);
         	memset( data_stream, 0, MAXLINE ); 
         	prolen=sizeof(procaddr);
         	n=recvfrom(sockfd,data_stream,MAXLINE,0,&procaddr,&prolen);
             
-            printf("Receiving from client/server..%d bytes.\n", n);
+            
            	if( n == -1 )
            		perror("recvfrom");
            
@@ -540,6 +543,7 @@ printf("select...\n");
 				 message_to_be_sent=msg_fields[2];
 				 route_rediscovery_flag=atoi(msg_fields[3]);
 				 sendODRframe(packet_socket,NULL,NULL);
+				 printf("sending PF done\n");
 				/*
 				if(!route_rediscovery_flag)
 				{
@@ -579,7 +583,8 @@ printf("select...\n");
         }else if(FD_ISSET(packet_socket,&rset))
         {
         	printf("Receiving packet from ODR...\n");
-	        if((n=recvfrom(packet_socket,buffer, ETH_FRAME_LEN, 0, NULL, NULL)>0))
+        	odrlen=sizeof(odraddr);
+	        if((n=recvfrom(packet_socket,buffer, ETH_FRAME_LEN, 0, &odraddr, &odrlen)>0))
 	        {
 	           printf("Received packet from ODR...\n");
 	        	if (n == -1) { printf("Error in recieving data from client..\n"); exit(0);}
