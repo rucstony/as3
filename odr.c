@@ -1,9 +1,11 @@
 
 #include <sys/socket.h>
-#include <netpacket/packet.h>
-#include <net/ethernet.h> /* the L2 protocols */
-#include	"hw_addrs.h"
+//#include <netpacket/packet.h>
+//#include <net/ethernet.h> /* the L2 protocols */
+#include "hw_addrs.h"
 #include "unp.h"
+#include <linux/if_ether.h>
+#include <linux/if_arp.h>
 #define USID_PROTO 0x67C6C81
 #define PROTOCOL_VALUE 108817537
 #define ETH_FRAME_LEN 1518
@@ -229,6 +231,7 @@ long staleness_param;
 */
 void sendODRframe( int s , struct odr_frame * populated_odr_frame , char * source_hw_mac_address )
 {
+	int j;
 	/*target address*/
 	struct sockaddr_ll socket_address;
 
@@ -308,7 +311,7 @@ int main(int argc, char const *argv[])
 	struct hwa_info	*hwa, *hwahead;
 	struct sockaddr	*sa;
 	char   *ptr;
-	int    i, j, prflag,route_exists,broadcast_id,n,s,len,clilen,pathlen;
+	int    i, j, prflag,route_exists,broadcast_id,n,s,len,clilen,pathlen,prolen;
 	int packet_socket;
 	int nready , odrlen;
     struct sockaddr procaddr;
@@ -475,6 +478,7 @@ The ODR process also creates a domain datagram socket for communication with app
 */
  	packet_socket = socket(PF_PACKET, SOCK_RAW, htonl(USID_PROTO));
 
+ 	printf("%s\n",hstrerror(h_errno) );
 	sockfd = socket(AF_LOCAL, SOCK_DGRAM, 0);
 	unlink(UNIXDG_PATH);
 
@@ -483,21 +487,22 @@ The ODR process also creates a domain datagram socket for communication with app
 	strcpy(servaddr.sun_path, UNIXDG_PATH);
 
 	bind(sockfd, (SA *) &servaddr, SUN_LEN(&servaddr));
-	//printf("socket bound %d\n", sockfd);
+	printf("socket bound %d\n", sockfd);
 
-
+	printf(" packet_socket socket bound %d\n", packet_socket);
    
     
 	//sendto(sockfd,"hello\n",10,0,&odraddr,sizeof(odraddr));
     //printf("sendto : %s\n", hstrerror(h_errno));
-
+printf("select...\n");
     FD_ZERO(&rset);
-
-
+printf("select...\n");
+//n=recvfrom(sockfd,data_stream,MAXLINE,0,&procaddr,sizeof(procaddr));
+//printf("%s\n",data_stream );
     maxfdp1 = max(packet_socket, sockfd) + 1;
     for ( ; ; ) 
     {
-       // printf("in loop...\n" );
+        printf("in loop...\n" );
         FD_SET(packet_socket, &rset);
         FD_SET(sockfd, &rset);
         if ( (nready = select(maxfdp1 + 1, &rset, NULL, NULL, NULL)) < 0) {
@@ -509,9 +514,15 @@ The ODR process also creates a domain datagram socket for communication with app
 
         if (FD_ISSET(sockfd, &rset)) 
         {
+        	memset( data_stream, 0, MAXLINE ); 
+        	prolen=sizeof(procaddr);
+        	n=recvfrom(sockfd,data_stream,MAXLINE,0,&procaddr,&prolen);
             
-            //printf("in FD_ISSET\n");
-            if((n=recvfrom(sockfd,data_stream,MAXLINE,0,&procaddr,sizeof(procaddr)))>0)
+            printf("Receiving from client/server..%d bytes.\n", n);
+           	if( n == -1 )
+           		perror("recvfrom");
+           
+           // if(data_stream)
             {
 				printf("data_stream: %s\n",data_stream );
 
@@ -528,7 +539,8 @@ The ODR process also creates a domain datagram socket for communication with app
 				 destination_port_number=atoi(msg_fields[1]);
 				 message_to_be_sent=msg_fields[2];
 				 route_rediscovery_flag=atoi(msg_fields[3]);
-				
+				 sendODRframe(packet_socket,NULL,NULL);
+				/*
 				if(!route_rediscovery_flag)
 				{
 					printf("checking entry for `%s` in routing table  \n", destination_canonical_ip_presentation_format);
@@ -558,16 +570,18 @@ The ODR process also creates a domain datagram socket for communication with app
 					RREQ.control_msg_type=1; //(RREQ = 1)
 					//send_RREQ(RREQ);
 				}
+				*/
+			}//else
+			{
+				printf("receive error : %s\n",hstrerror(h_errno) );
 			}
 				
         }else if(FD_ISSET(packet_socket,&rset))
         {
-        	odrlen=sizeof(odraddr);
-
-			
+        	printf("Receiving packet from ODR...\n");
 	        if((n=recvfrom(packet_socket,buffer, ETH_FRAME_LEN, 0, NULL, NULL)>0))
 	        {
-	           
+	           printf("Received packet from ODR...\n");
 	        	if (n == -1) { printf("Error in recieving data from client..\n"); exit(0);}
 	        	else{ printf("Recieved Packet Size : %d\n",n ); }
 	            //recvd_packet = processPacket(str_from_sock);

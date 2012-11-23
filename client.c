@@ -85,7 +85,7 @@ int main(int argc, char **argv)
         msg_send( sockfd,  destination_canonical_ip_presentation_format, "72217",  "message_to_be_sent", route_rediscovery_flag );
         
         
-        msg_recv( sockfd, message_received, source_canonical_ip_presentation_format, source_port_number);
+    //    msg_recv( sockfd, message_received, source_canonical_ip_presentation_format, source_port_number);
 
         retrieveHostName( source_canonical_ip_presentation_format, server_vm );
         printf("Client at node  %s received from %s <timestamp>\n", client_vm, server_vm);
