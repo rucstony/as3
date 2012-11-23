@@ -8,7 +8,7 @@
 #include <linux/if_arp.h>
 #define USID_PROTO 0x67C6C81
 #define PROTOCOL_VALUE 108817537
-#define ETH_FRAME_LEN 1518
+#define ETH_FRAME_LEN 1500
 #define ROUTING_BUF_SIZE 100
 #define UNIXDG_PATH "testpath"
 #define UNIX_SERV_PATH "unixservpath"
@@ -292,7 +292,7 @@ void sendODRframe( int s , struct odr_frame * populated_odr_frame , char * sourc
 	memcpy((void*)(buffer+ETH_ALEN), (void*)src_mac, ETH_ALEN);
 	eh->h_proto = USID_PROTO;
 	/*fill the frame with some data*/
-	for (j = 0; j < 1500; j++) {
+	for (j = 0; j < 1482; j++) {
 		data[j] = (unsigned char)((int) (255.0*rand()/(RAND_MAX+1.0)));
 	}
 
