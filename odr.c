@@ -453,27 +453,29 @@ struct odr_frame * createApplicationPayloadMessage( char * source_canonical_ip_a
 /*
 	Pushes in the source eth0 canonical IP address into a global variable. 
 */
-char * getOwnCanonicalIPAddress()
+void getOwnCanonicalIPAddress(char* own_canonical_ip_address)
 {
 	struct hwa_info	*hwa, *hwahead;
 	struct sockaddr_in * ip_address_structure;
-	char own_canonical_ip_address[100];
+	
 
 	/* Flood with broadcast address on all interfaces except eth0 and lo and recieved interface */
 	for (hwahead = hwa = Get_hw_addrs(); hwa != NULL; hwa = hwa->hwa_next) 
 	{
+		printf("%s\n",hwa->if_name );
 		if( strcmp(hwa->if_name, "eth0")==0 )
 		{	
+			printf("Entered if..\n");
 			ip_address_structure = (struct sockaddr_in *)hwa->ip_addr; 		
-			inet_ntop( AF_INET, (ip_address_structure->sin_addr).s_addr, own_canonical_ip_address, 100 );
+			inet_ntop( AF_INET, &(ip_address_structure->sin_addr), own_canonical_ip_address, 100 );
+			printf("\nSelf's canonical IP address : %s\n", own_canonical_ip_address);	
+			return;	
 		}
-		else
-		{
-			strcpy(own_canonical_ip_address, "Not found..");
-		}
-		printf("\nSelf's canonical IP address : %s\n", own_canonical_ip_address);	
 	}	
-	return own_canonical_ip_address;
+	strcpy(own_canonical_ip_address, "Not found..");
+	printf("\nSelf's canonical IP address : %s\n", own_canonical_ip_address);	
+	return;
+	//return own_canonical_ip_address;
 }
 
 
@@ -599,14 +601,17 @@ int main(int argc, char const *argv[])
 	if(argc<2)
 	{
 		printf("Invalid args: ODR <Staleness parameter in seconds>\n");
+		return 0;
 	}
 	else
 	{
 		staleness_param = atoi( argv[1] );
 		printf( "Staleness parameter is : %ld\n", staleness_param );
-		return 0;
+		
 
 	}
+	getOwnCanonicalIPAddress(source_addr);
+	printf("Source address: %s\n", source_addr);
 	//insert server entry
 	//insert_to_port_sunpath_mapping( char * sunpath, int port );
 /*
