@@ -128,21 +128,21 @@ int port_sunpath_delete( char * sunpath )
 
 /* UPDATE ODR.C WITH THIS FUNCTION. */
 void insert_to_routing_table( 	char* destination_canonical_ip_address,	char* next_hop_node_ethernet_address,
-								char* outgoing_interface_index, int number_of_hops_to_destination )
+								int outgoing_interface_index, int number_of_hops_to_destination )
 {
 
     struct routing_entry *node = (struct routing_entry *)malloc( sizeof(struct routing_entry) );
 	struct timeval curr_time_ms;
 
 	gettimeofday(&curr_time_ms, NULL);
- 
+	printf("%s,%d\n",destination_canonical_ip_address, outgoing_interface_index  ); 
     strcpy( node->destination_canonical_ip_address, destination_canonical_ip_address );
-    strcpy( node->next_hop_node_ethernet_address, next_hop_node_ethernet_address );
-    strcpy( node->outgoing_interface_index, outgoing_interface_index );
+    memcpy( node->next_hop_node_ethernet_address, next_hop_node_ethernet_address, 6 );
+    node->outgoing_interface_index =  outgoing_interface_index ;
     
     node->number_of_hops_to_destination = number_of_hops_to_destination;
 	node->made_or_last_reconfirmed_or_updated_timestamp = curr_time_ms;
-    
+   
     if( rt_head == NULL )
     {
       rt_head = node;
@@ -207,7 +207,13 @@ void print_routing_table()
 	node = rt_head;
 	while( node != NULL )
 	{
-		printf("-->%s,%s,%s", node->destination_canonical_ip_address,node->next_hop_node_ethernet_address,node->outgoing_interface_index );
+		printf("\n***************************\n");
+		printf("Printing Routing Table\n");
+		printf("\n***************************\n");
+
+		printf("-->Destination IP : %s,Outgoing Interface Index : %d", node->destination_canonical_ip_address,node->outgoing_interface_index );
+		printf("\n***************************\n");
+
 		node = node->next;
 	}
 	printf("\n");
@@ -307,25 +313,34 @@ int enterReverseRoute( char* destination_canonical_ip_address_presentation_forma
 						char* outgoing_interface_index, int number_of_hops_to_destination )
 {
 	struct routing_entry * node;
+	printf("enterReverseRoute 1\n");
 	node = routing_table_lookup( destination_canonical_ip_address_presentation_format );
+	printf("enterReverseRoute 2\n");
 	if( node == NULL )
 	{
+		printf("enterReverseRoute 3\n");
 		insert_to_routing_table( destination_canonical_ip_address_presentation_format, rreq_ethernet_header_next_hop_node_ethernet_address,
 								 outgoing_interface_index, number_of_hops_to_destination );
+		printf("enterReverseRoute 4\n");
 		return 1;
 	}
 	else
 	{
+		printf("enterReverseRoute 5\n");
 		if( (node->number_of_hops_to_destination > number_of_hops_to_destination) )
 		{
+			printf("enterReverseRoute 6a\n");
 			update_routing_table( destination_canonical_ip_address_presentation_format, rreq_ethernet_header_next_hop_node_ethernet_address,
 								  outgoing_interface_index, number_of_hops_to_destination );
+			printf("enterReverseRoute 6\n");
 			return 1;			
 		}	
 		else if(  ( strcmp(node->next_hop_node_ethernet_address, rreq_ethernet_header_next_hop_node_ethernet_address)!=0 ) )
 		{
+			printf("enterReverseRoute 7\n");
 			update_routing_table( destination_canonical_ip_address_presentation_format, rreq_ethernet_header_next_hop_node_ethernet_address,
 								  outgoing_interface_index, number_of_hops_to_destination );
+			printf("enterReverseRoute 8\n");
 		}
 	}
 	return 0;	
@@ -396,7 +411,7 @@ void floodRREQ( int sockfd, int recieved_interface_index, char * source_canonica
 							   		   broadcast_id, destination_canonical_ip_address,   
 							   		   number_of_hops_to_destination, RREP_sent_flag,
 									   route_rediscovery_flag);
-
+	printf("At floodRREQ, size of frame was : %d\n",sizeof(*populated_odr_frame)  );
 	/* Flood with broadcast address on all interfaces except eth0 and lo and recieved interface */
 	for (hwahead = hwa = Get_hw_addrs(); hwa != NULL; hwa = hwa->hwa_next) 
 	{
@@ -404,18 +419,17 @@ void floodRREQ( int sockfd, int recieved_interface_index, char * source_canonica
 			&& strcmp(hwa->if_name,"lo")!=0
 			&& hwa->if_index!=recieved_interface_index )
 		{	
+			printf("Entering SendODR..\n");
 			sendODRframe(sockfd, populated_odr_frame, hwa->if_haddr,hwa->if_index);
+			printf("Leaving SendODR..\n");
+
 		}
 	}	
-
+	printf("Leaving the FloodRREQ..\n");
 	return;
 }
 
-/* 
-	#Flood's an RREQ on all interfaces  
- 	
- 	recieved_interface_index = -1 if source node.
- */
+
 void sendRREP( int sockfd, struct odr_frame * recieved_odr_frame )
 {
 	struct hwa_info	*hwa, *hwahead;
@@ -425,6 +439,7 @@ void sendRREP( int sockfd, struct odr_frame * recieved_odr_frame )
 	
 	re =  routing_table_lookup( recieved_odr_frame->source_canonical_ip_address );
 
+	printf("Sending an RREP back on interface %d..\n", re->outgoing_interface_index );
 	sendODRframe(sockfd, recieved_odr_frame , re->next_hop_node_ethernet_address, re->outgoing_interface_index);
 
 	return;
@@ -492,7 +507,6 @@ struct odr_frame * createRREQ( char * source_canonical_ip_address,
 
 {
 	struct odr_frame * populated_odr_frame = (struct odr_frame *) malloc( sizeof( struct odr_frame ) );
-	printf("Size of the ODR Frame : %d bytes\n", sizeof( struct odr_frame ) );	
 	
 
 
@@ -503,6 +517,7 @@ struct odr_frame * createRREQ( char * source_canonical_ip_address,
 	populated_odr_frame->number_of_hops_to_destination = htonl(number_of_hops_to_destination);
 	populated_odr_frame->RREP_sent_flag = htonl( RREP_sent_flag );
 	populated_odr_frame->route_rediscovery_flag = htonl( route_rediscovery_flag );
+	printf("Size of the ODR Frame : %d bytes\n", sizeof( *populated_odr_frame ) );	
 
 	return populated_odr_frame;
 }
@@ -623,7 +638,8 @@ void sendODRframe1( int s , struct odr_frame * populated_odr_frame , char * sour
 	/*Broadcast MAC address*/
 	//unsigned char dest_mac[6] = {0x00, 0x0c, 0x29, 0x24, 0x8f, 0x70};
 	unsigned char dest_mac[6] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
-printf("sending frame on socket: %d\n",s );
+
+	printf("sending frame on socket: %d\n",s );
 	/*prepare sockaddr_ll*/
 
 	/*RAW communication*/
@@ -696,13 +712,16 @@ void sendODRframe( int s , struct odr_frame * populated_odr_frame , char * sourc
 
 	/*our MAC address*/
 	unsigned char src_mac[6]; 
-	 char src_mac1[100]=source_hw_mac_address; 
+
+	char * src_mac1=source_hw_mac_address; 
+
 //	unsigned char src_mac[6] = {0x00, 0x0c, 0x29, 0x11, 0x58, 0xa2};
 	
 	/*Broadcast MAC address*/
 	//unsigned char dest_mac[6] = {0x00, 0x0c, 0x29, 0x24, 0x8f, 0x70};
 	unsigned char dest_mac[6] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
 	printf("sending frame on socket: %d\n",s );
+	printf("populated_odr_frame: %d bytes.\n",sizeof(*populated_odr_frame));
 	/*prepare sockaddr_ll*/
 	
 	i = IF_HADDR;
@@ -732,7 +751,8 @@ void sendODRframe( int s , struct odr_frame * populated_odr_frame , char * sourc
 
 	/*address length*/
 	socket_address.sll_halen    = ETH_ALEN;		
-	
+
+	printf("Before socket_address..\n");	
 	/*MAC - begin*/
 	socket_address.sll_addr[0]  = 0xFF;		
 	socket_address.sll_addr[1]  = 0xFF;		
@@ -755,11 +775,12 @@ void sendODRframe( int s , struct odr_frame * populated_odr_frame , char * sourc
 		data[j] = (unsigned char)((int) (255.0*rand()/(RAND_MAX+1.0)));
 	}
 */
+	printf("Just before send.. \n");
 	/*send the packet*/
 	send_result = sendto(s, buffer, ETH_FRAME_LEN, 0, 
 		      (struct sockaddr*)&socket_address, sizeof(socket_address));
 	if (send_result == -1){ perror("sendto"); }
-
+	printf("Done sending..WOO\n");
 }
 
 struct odr_frame * processRecievedPacket(char * str_from_sock)
@@ -782,8 +803,11 @@ struct odr_frame * processRecievedPacket(char * str_from_sock)
 		
 	/*pointer to userdata in ethernet frame*/
 	void * data = buffer + 14;
+	printf("1\n");
 		memcpy((void*)buffer, (void*)str_from_sock, ETH_FRAME_LEN ); 
+		printf("2\n");
 	recieved_odr_frame = (struct odr_frame *)data;
+	printf("3\n");
 
 	return recieved_odr_frame;
 
@@ -818,8 +842,8 @@ int main(int argc, char const *argv[])
 	void* buffer = (void*)malloc(ETH_FRAME_LEN); /*Buffer for ethernet frame*/
 	int length = 0; /*length of the received frame*/ 
 	int notifyOthers;
-  	char * src_mac1;
-  	char next_hop_node_ethernet_address[100], source_hw_mac_address[100];
+  	
+  	char next_hop_node_ethernet_address[100];
   	int ihw,khw=0;
 	if(argc<2)
 	{
@@ -1090,13 +1114,9 @@ The ODR process also creates a domain datagram socket for communication with app
         	odrlen=sizeof(odraddr);
 	        if((n=recvfrom(packet_socket,buffer, ETH_FRAME_LEN, 0, &odraddr, &odrlen)>0))
 	        {
-	          	
-	        	source_hw_mac_address=odraddr.sll_addr;
-
- 				src_mac1=source_hw_mac_address; 
 				ihw = IF_HADDR;
 	        		
-	        		printf("Received packet from hw address:");
+	        		printf("Received packet from hw address:\n");
 				do 
 				{	
 					next_hop_node_ethernet_address[khw] = odraddr.sll_addr[khw] & 0xff;
@@ -1122,29 +1142,34 @@ The ODR process also creates a domain datagram socket for communication with app
 	        	}
 
 	            recvd_packet = (struct odr_frame *)processRecievedPacket(buffer);
-
+	            printf("processRecievedPacket done.PACKET SIZE : %d.\n", sizeof(*recvd_packet) );
 	            recvd_packet->number_of_hops_to_destination=recvd_packet->number_of_hops_to_destination+1;
+	            printf("sRecievedPacket accessed..%d\n" , recvd_packet->number_of_hops_to_destination);
 	            if(recvd_packet->control_msg_type==0) //RREQ
 	            {
+	            	printf("5\n");
 
 					notifyOthers = enterReverseRoute( recvd_packet->source_canonical_ip_address,
-										"rreq_ethernet_header_next_hop_node_ethernet_address",
-										/*interface index*/3,recvd_packet->number_of_hops_to_destination );
+										next_hop_node_ethernet_address,
+										/*interface index*/odraddr.sll_ifindex,recvd_packet->number_of_hops_to_destination );
+	            	printf("6\n");
 	            	if(strcmp(recvd_packet->destination_canonical_ip_address,source_addr)==0)
 	            	{
+	            		printf("7\n");
 	            		//odr is at the destination node 
 	            		if(!recvd_packet->RREP_sent_flag)
 	            		{
-		            	// send an RREP here. 
+		            		sendRREP( packet_socket, recvd_packet);
 	            		}
         				
 	            	}else
 	            	{
+	            		printf("8\n");
 
 		            	if(!recvd_packet->route_rediscovery_flag)
 						{
-							printf("checking entry for `%s` in routing table  \n", destination_canonical_ip_presentation_format);
-							route_exists=check_if_route_exists(destination_canonical_ip_presentation_format ); //pass address of existing_entry so that its value can be set inside the function
+							printf("checking entry for `%s` in routing table  \n", recvd_packet->destination_canonical_ip_address);
+							route_exists=check_if_route_exists(recvd_packet->destination_canonical_ip_address ); //pass address of existing_entry so that its value can be set inside the function
 						}
 						else
 						{	
@@ -1158,8 +1183,8 @@ The ODR process also creates a domain datagram socket for communication with app
 							 
 		            		if(!recvd_packet->RREP_sent_flag)
 		            		{
-		            			//send_RREP(existing_entry);	
-		            		}
+		            			sendRREP( packet_socket, recvd_packet);
+							}
 		            		else
 		            		{
 								printf("RREP already sent for this route\n");
@@ -1175,16 +1200,32 @@ The ODR process also creates a domain datagram socket for communication with app
 							printf("Route not found..\n");
 							
 						}
-						floodRREQ( packet_socket, 3/*recieved_interface_index*/, recvd_packet->source_canonical_ip_address,
-									   recvd_packet->broadcast_id, recvd_packet->destination_canonical_ip_address,   
-									   recvd_packet->number_of_hops_to_destination, recvd_packet->RREP_sent_flag, recvd_packet->route_rediscovery_flag );
-					
+						floodRREQ( packet_socket, odraddr.sll_ifindex/*recieved_interface_index*/, recvd_packet->source_canonical_ip_address,
+									   ntohl(recvd_packet->broadcast_id), recvd_packet->destination_canonical_ip_address,   
+									   ntohl(recvd_packet->number_of_hops_to_destination), ntohl(recvd_packet->RREP_sent_flag), ntohl(recvd_packet->route_rediscovery_flag) );
+						print_routing_table();		
 		         	}
 		     	}
 	         	else if(recvd_packet->control_msg_type==1) //RREP
 	            {
-	            	recvd_packet->route_rediscovery_flag=1;
-	            	//send_RREP(existing_entry);	
+	          //  	recvd_packet->route_rediscovery_flag=1;
+					
+					/* Forward routes. */
+					enterReverseRoute( recvd_packet->destination_canonical_ip_address,
+										next_hop_node_ethernet_address,
+										/*interface index*/odraddr.sll_ifindex,recvd_packet->number_of_hops_to_destination );
+
+
+					if( strcmp(  recvd_packet->source_canonical_ip_address, source_addr)==0 )
+					{
+						/* We are at the source finally. */
+						printf("\nRETRIEVED A PATH !!\n");
+
+					}		            
+		           	else
+		           	{
+		           		sendRREP( packet_socket, recvd_packet);
+	            	}
 	            }else//message
 	            {
 
