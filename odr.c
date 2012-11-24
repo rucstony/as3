@@ -265,7 +265,9 @@ struct req_msgs
 };
 
 */
+
 /* ETHERNET LEVEL FUNCTIONS - creating ethernet headers and sending messages. */
+/* ODR FRAME ####### */
 
 struct odr_frame
 {
@@ -784,6 +786,61 @@ void sendODRframe( int s , struct odr_frame * populated_odr_frame , char * sourc
 	printf("Done sending..WOO\n");
 }
 
+struct odr_frame
+{
+	uint32_t control_msg_type; /* RREQ / RREP/ application payload */
+
+	char source_canonical_ip_address[INET_ADDRSTRLEN];
+	//source_sequence_#
+	uint32_t broadcast_id; //incremented every time the source issues new RREQ
+	char destination_canonical_ip_address[INET_ADDRSTRLEN];
+	//dest_sequence_#
+	uint32_t number_of_hops_to_destination;
+
+	uint32_t RREP_sent_flag; /* Only for RREQ's */
+	uint32_t route_rediscovery_flag; /* RREQs & RREPs */
+
+	/* Application payload specific information. */
+	uint32_t source_application_port_number;
+	uint32_t destination_application_port_number;
+	uint32_t number_of_bytes_in_application_message;	
+
+	char application_data_payload[APP_DATA_PAYLOAD_LEN];
+};
+
+/*
+	CONVERT TO NETWORK BYTE ORDER
+	Converts the recieved odr_frame structure to NBO.
+*/
+struct odr_frame * convertToNetworkByteOrder( struct odr_frame * recieved_odr_frame )
+{
+	uint32_t control_msg_type;
+
+	recieved_odr_frame->control_msg_type = ntohl( recieved_odr_frame->control_msg_type );
+	control_msg_type = recieved_odr_frame->control_msg_type;
+
+	recieved_odr_frame->broadcast_id = ntohl( recieved_odr_frame->broadcast_id );
+	recieved_odr_frame->number_of_hops_to_destination = ntohl( recieved_odr_frame->number_of_hops_to_destination );
+	
+	if( control_msg_type == 0 )
+	{
+		recieved_odr_frame->RREP_sent_flag = ntohl( recieved_odr_frame->RREP_sent_flag );
+	}
+	if( (control_msg_type == 1) 
+		|| (control_msg_type == 0) )
+	{
+		recieved_odr_frame->route_rediscovery_flag = ntohl(route_rediscovery_flag);
+	}	
+	if( control_msg_type == 2 )
+	{
+		recieved_odr_frame->source_application_port_number = ntohl(recieved_odr_frame->source_application_port_number);
+		recieved_odr_frame->destination_application_port_number = ntohl( recieved_odr_frame->destination_application_port_number );
+		recieved_odr_frame->number_of_bytes_in_application_message = ntohl( recieved_odr_frame->number_of_bytes_in_application_message );
+	}	
+	return recieved_odr_frame;
+}
+
+
 struct odr_frame * processRecievedPacket(char * str_from_sock)
 {
 	//struct odr_frame * recieved_odr_frame = (struct odr_frame *)malloc( sizeof( struct odr_frame ) );
@@ -796,8 +853,6 @@ struct odr_frame * processRecievedPacket(char * str_from_sock)
 	/*buffer for ethernet frame*/
 	void* buffer = (void*)malloc(ETH_FRAME_LEN);
 	unsigned char* etherhead = buffer;
-	
-
 
 	/*pointer to ethenet header*/
 	
@@ -809,6 +864,8 @@ struct odr_frame * processRecievedPacket(char * str_from_sock)
 		printf("2\n");
 	recieved_odr_frame = (struct odr_frame *)data;
 	printf("3\n");
+
+	recieved_odr_frame = convertToNetworkByteOrder( recieved_odr_frame );
 
 	return recieved_odr_frame;
 
@@ -1163,6 +1220,7 @@ The ODR process also creates a domain datagram socket for communication with app
 	        	}
 
 	            recvd_packet = (struct odr_frame *)processRecievedPacket(buffer);
+	            recvd_packet = (struct odr_frame *)	
 	            printf("processRecievedPacket done.PACKET SIZE : %d.\n", sizeof(*recvd_packet) );
 	            recvd_packet->number_of_hops_to_destination=recvd_packet->number_of_hops_to_destination+1;
 	            printf("sRecievedPacket accessed..%d\n" , recvd_packet->number_of_hops_to_destination);
