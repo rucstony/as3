@@ -97,17 +97,23 @@ int port_sunpath_delete( char * sunpath )
 	return -1;
 }
 
+/* UPDATE ODR.C WITH THIS FUNCTION. */
 void insert_to_routing_table( 	char* destination_canonical_ip_address,	char* next_hop_node_ethernet_address,
 								char* outgoing_interface_index, int number_of_hops_to_destination )
 {
 
     struct routing_entry *node = (struct routing_entry *)malloc( sizeof(struct routing_entry) );
+	struct timeval curr_time_ms;
+
+	gettimeofday(&curr_time_ms, NULL);
  
     strcpy( node->destination_canonical_ip_address, destination_canonical_ip_address );
     strcpy( node->next_hop_node_ethernet_address, next_hop_node_ethernet_address );
     strcpy( node->outgoing_interface_index, outgoing_interface_index );
+    
     node->number_of_hops_to_destination = number_of_hops_to_destination;
-
+	node->made_or_last_reconfirmed_or_updated_timestamp = curr_time_ms;
+    
     if( rt_head == NULL )
     {
       rt_head = node;
@@ -207,6 +213,7 @@ entry was made or last “reconfirmed” / updated. Note that a destination node
 is to be identified only by its ‘canonical’ IP address, and not by any other IP addresses the node has.
 */
 //DEFINE structure for RREQ/RREP messages
+/*
 struct req_msgs
 {
 	char source_addr[INET_ADDRSTRLEN];
@@ -219,6 +226,228 @@ struct req_msgs
 	int RREP_sent_flag;
 	int forced_discovery;
 };
+
+*/
+/* ETHERNET LEVEL FUNCTIONS - creating ethernet headers and sending messages. */
+
+struct odr_frame
+{
+	uint32_t control_msg_type; /* RREQ / RREP/ application payload */
+
+	char source_canonical_ip_address[INET_ADDRSTRLEN];
+	//source_sequence_#
+	uint32_t broadcast_id; //incremented every time the source issues new RREQ
+	char destination_canonical_ip_address[INET_ADDRSTRLEN];
+	//dest_sequence_#
+	uint32_t number_of_hops_to_destination;
+
+	uint32_t RREP_sent_flag; /* Only for RREQ's */
+	uint32_t route_rediscovery_flag; /* RREQs & RREPs */
+
+	/* Application payload specific information. */
+	uint32_t source_application_port_number;
+	uint32_t destination_application_port_number;
+	uint32_t number_of_bytes_in_application_message;	
+
+};
+
+void update_routing_table( char* destination_canonical_ip_address_presentation_format,	char* next_hop_node_ethernet_address,
+						   char* outgoing_interface_index, int number_of_hops_to_destination )
+{
+	struct routing_entry * node;
+	struct timeval curr_time_ms;
+
+	node = routing_table_lookup( destination_canonical_ip_presentation_format );
+	gettimeofday(&curr_time_ms, NULL);
+
+	/* Updating the routing table entry. */
+	strcpy(node->destination_canonical_ip_address, destination_canonical_ip_presentation_format);
+	strcpy(node->next_hop_node_ethernet_address, next_hop_node_ethernet_address);
+	strcpy(node->outgoing_interface_index, outgoing_interface_index);
+	
+	node->number_of_hops_to_destination = number_of_hops_to_destination;
+	node->made_or_last_reconfirmed_or_updated_timestamp = curr_time_ms;
+	return;
+}
+
+
+/* DO THIS BEFORE GENERATING AN RREP WHEN APPROPRIATE */
+void enterReverseRoute( char* destination_canonical_ip_address_presentation_format,	char* rreq_ethernet_header_next_hop_node_ethernet_address,
+						char* outgoing_interface_index, int number_of_hops_to_destination )
+{
+	struct routing_entry * node;
+	node = routing_table_lookup( destination_canonical_ip_presentation_format );
+	if( node == NULL )
+	{
+		insert_to_routing_table( destination_canonical_ip_presentation_format, next_hop_node_ethernet_address,
+								 outgoing_interface_index, number_of_hops_to_destination );
+	}
+	else
+	{
+		if( (node->number_of_hops_to_destination > number_of_hops_to_destination) 
+			|| ( strcmp(node->next_hop_node_ethernet_address, rreq_ethernet_header_next_hop_node_ethernet_address)!=0 ) )
+		{
+			update_routing_table( destination_canonical_ip_presentation_format, next_hop_node_ethernet_address,
+								  outgoing_interface_index, number_of_hops_to_destination );
+		}	
+	}	
+
+}
+
+
+
+void updateReverseRoute( char* source_canonical_ip_address_presentation_format,char* next_hop_node_ethernet_address,
+						char* outgoing_interface_index, int number_of_hops_to_destination )
+{
+	return;
+}
+
+
+/*
+void conditionalRREQfloodingAfterRREP( int sockfd, int recieved_interface_index )
+{
+	struct hwa_info	*hwa, *hwahead;
+
+	struct odr_frame * populated_odr_frame;
+	populated_odr_frame =  createRREQ( source_canonical_ip_address, broadcast_id, destination_canonical_ip_address,   
+							   		   number_of_hops_to_destination, 1, route_rediscovery_flag );
+
+
+	for (hwahead = hwa = Get_hw_addrs(); hwa != NULL; hwa = hwa->hwa_next) 
+	{
+		if( strcmp(hwa->if_name, "eth0")!=0
+			|| strcmp(hwa->if_name,"lo")!=0
+			|| hwa->if_index!=recieved_interface_index )
+		{	
+			sendODRframe(sockfd, populated_odr_frame, hwa->if_haddr);
+		}
+	}	
+	return;
+}
+*/
+
+void generateRREP()
+{
+	struct odr_frame * populated_odr_frame;
+	populated_odr_frame = createRREP();
+	transmitRREP( populated_odr_frame );
+}
+
+
+void transmitRREP(int sockfd, int recieved_interface_index, char * source_canonical_ip_address,
+				int broadcast_id, char * destination_canonical_ip_address,   
+				int number_of_hops_to_destination, int RREP_sent_flag,
+				int route_rediscovery_flag )
+{ 
+	return;
+}
+
+/* 
+	#Flood's an RREQ on all interfaces  
+ 	
+ 	recieved_interface_index = -1 if source node.
+ */
+void floodRREQ( int sockfd, int recieved_interface_index, char * source_canonical_ip_address,
+				int broadcast_id, char * destination_canonical_ip_address,   
+				int number_of_hops_to_destination, int RREP_sent_flag,
+				int route_rediscovery_flag )
+{
+	struct hwa_info	*hwa, *hwahead;
+
+	struct odr_frame * populated_odr_frame;
+	populated_odr_frame =  createRREQ( source_canonical_ip_address,
+							   		   broadcast_id, destination_canonical_ip_address,   
+							   		   number_of_hops_to_destination, RREP_sent_flag,
+									   route_rediscovery_flag);
+
+	/* Flood with broadcast address on all interfaces except eth0 and lo and recieved interface */
+	for (hwahead = hwa = Get_hw_addrs(); hwa != NULL; hwa = hwa->hwa_next) 
+	{
+		if( strcmp(hwa->if_name, "eth0")!=0
+			&& strcmp(hwa->if_name,"lo")!=0
+			&& hwa->if_index!=recieved_interface_index )
+		{	
+			sendODRframe(sockfd, populated_odr_frame, hwa->if_haddr);
+		}
+	}	
+
+	return;
+}
+
+
+/*
+	CREATE RREQ
+	Packs up the RREQ as a struct with all necessary variables in Network Byte Order. 
+*/
+struct odr_frame * createRREQ( char * source_canonical_ip_address,
+							   int broadcast_id, char * destination_canonical_ip_address,   
+							   int number_of_hops_to_destination, int RREP_sent_flag,
+							   int route_rediscovery_flag )
+
+{
+	printf("Size of the ODR Frame : %d bytes\n", sizeof( struct odr_frame ) );	
+	struct odr_frame * populated_odr_frame = (struct odr_frame *) malloc( sizeof( struct odr_frame ) );
+
+
+	populated_odr_frame->control_msg_type = htonl(0);		
+	populated_odr_frame->source_canonical_ip_address = source_canonical_ip_address;
+	populated_odr_frame->broadcast_id = htonl( broadcast_id );
+	populated_odr_frame->destination_canonical_ip_address = destination_canonical_ip_address;
+	populated_odr_frame->number_of_hops_to_destination = htonl(number_of_hops_to_destination);
+	populated_odr_frame->RREP_sent_flag = htonl( RREP_sent_flag );
+	populated_odr_frame->route_rediscovery_flag = htonl( route_rediscovery_flag );
+
+	return odr_frame;
+}
+
+
+/*
+	CREATE RREP
+	Packs up the RREP as a struct with all necessary variables in Network Byte Order. 
+*/
+struct odr_frame * createRREP( char * source_canonical_ip_address,
+							   int broadcast_id, char * destination_canonical_ip_address,
+							   int number_of_hops_to_destination, int route_rediscovery_flag )
+{
+	printf("Size of the ODR Frame : %d bytes\n", sizeof( struct odr_frame ) );	
+	struct odr_frame * populated_odr_frame = (struct odr_frame *) malloc( sizeof( struct odr_frame ) );
+
+
+	populated_odr_frame->control_msg_type = htonl( 1 );		
+	populated_odr_frame->source_canonical_ip_address = source_canonical_ip_address;
+	populated_odr_frame->broadcast_id = htonl( broadcast_id );
+	populated_odr_frame->destination_canonical_ip_address = destination_canonical_ip_address;
+	populated_odr_frame->number_of_hops_to_destination = htonl(number_of_hops_to_destination);
+
+	populated_odr_frame->route_rediscovery_flag = htonl( route_rediscovery_flag );
+
+	return odr_frame;
+}
+
+/*
+	Creates an APPLICATION PAYLOAD MESSAGE 
+	Packs the data into an odr frame in Network Byte Order and returns a pointer to it. 
+*/
+struct odr_frame * createApplicationPayloadMessage( char * source_canonical_ip_address,
+							   						int broadcast_id, char * destination_canonical_ip_address,   
+							   						int number_of_hops_to_destination, int source_application_port_number,
+							   						int destination_application_port_number, int number_of_bytes_in_application_message )
+{
+	printf("Size of the ODR Frame : %d bytes\n", sizeof( struct odr_frame ) );	
+	struct odr_frame * populated_odr_frame = (struct odr_frame *) malloc( sizeof( struct odr_frame ) );
+
+	populated_odr_frame->control_msg_type = htonl(2);		
+	populated_odr_frame->source_canonical_ip_address = source_canonical_ip_address;
+	populated_odr_frame->broadcast_id = htonl( broadcast_id );
+	populated_odr_frame->destination_canonical_ip_address = destination_canonical_ip_address;
+	populated_odr_frame->number_of_hops_to_destination = htonl(number_of_hops_to_destination);
+
+	populated_odr_frame->source_application_port_number = htonl( source_application_port_number );
+	populated_odr_frame->destination_application_port_number = htonl( destination_application_port_number );
+	populated_odr_frame->number_of_bytes_in_application_message = htonl( number_of_bytes_in_application_message );	
+
+	return odr_frame;
+}
 
 
 struct routing_entry * check_if_route_exists( char * destination_canonical_ip_presentation_format );
