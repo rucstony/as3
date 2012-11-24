@@ -813,6 +813,27 @@ struct odr_frame * processRecievedPacket(char * str_from_sock)
 
 }
 
+/*
+*/
+void transmitAppPayloadMessage( int sockfd, char * source_canonical_ip_address,
+								int broadcast_id, char * destination_canonical_ip_address,   
+								int number_of_hops_to_destination, char * message, 
+								int destination_application_port_number, int source_application_port_number )
+{
+	struct odrframe * populated_odr_frame;
+	populated_odr_frame =  createApplicationPayloadMessage( source_canonical_ip_address,
+							   								broadcast_id, destination_canonical_ip_address,   
+							   								number_of_hops_to_destination, source_application_port_number,
+							   								destination_application_port_number, message ,
+							   								sizeof( message ) );
+	struct routing_entry * re;
+	re = routing_table_lookup( destination_canonical_ip_address );
+
+	sendODRframe( sockfd , populated_odr_frame , re->next_hop_node_ethernet_address, re->outgoing_interface_index );
+	return;
+}
+
+
 int main(int argc, char const *argv[])
 {
 	struct hwa_info	*hwa, *hwahead;
