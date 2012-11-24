@@ -261,7 +261,7 @@ void update_routing_table( char* destination_canonical_ip_address_presentation_f
 	gettimeofday(&curr_time_ms, NULL);
 
 	/* Updating the routing table entry. */
-	strcpy(node->destination_canonical_ip_address, destination_canonical_ip_presentation_format);
+	strcpy(node->destination_canonical_ip_address, destination_canonical_ip_address_presentation_format);
 	strcpy(node->next_hop_node_ethernet_address, next_hop_node_ethernet_address);
 	strcpy(node->outgoing_interface_index, outgoing_interface_index);
 	
@@ -391,9 +391,9 @@ struct odr_frame * createRREQ( char * source_canonical_ip_address,
 
 
 	populated_odr_frame->control_msg_type = htonl(0);		
-	populated_odr_frame->source_canonical_ip_address = source_canonical_ip_address;
+	strcpy(populated_odr_frame->source_canonical_ip_address, source_canonical_ip_address);
 	populated_odr_frame->broadcast_id = htonl( broadcast_id );
-	populated_odr_frame->destination_canonical_ip_address = destination_canonical_ip_address;
+	strcpy(populated_odr_frame->destination_canonical_ip_address, destination_canonical_ip_address);
 	populated_odr_frame->number_of_hops_to_destination = htonl(number_of_hops_to_destination);
 	populated_odr_frame->RREP_sent_flag = htonl( RREP_sent_flag );
 	populated_odr_frame->route_rediscovery_flag = htonl( route_rediscovery_flag );
@@ -410,19 +410,19 @@ struct odr_frame * createRREP( char * source_canonical_ip_address,
 							   int broadcast_id, char * destination_canonical_ip_address,
 							   int number_of_hops_to_destination, int route_rediscovery_flag )
 {
-	printf("Size of the ODR Frame : %d bytes\n", sizeof( struct odr_frame ) );	
+	
 	struct odr_frame * populated_odr_frame = (struct odr_frame *) malloc( sizeof( struct odr_frame ) );
 
-
+	printf("Size of the ODR Frame : %d bytes\n", sizeof( struct odr_frame ) );	
 	populated_odr_frame->control_msg_type = htonl( 1 );		
-	populated_odr_frame->source_canonical_ip_address = source_canonical_ip_address;
+	strcpy(populated_odr_frame->source_canonical_ip_address, source_canonical_ip_address);
 	populated_odr_frame->broadcast_id = htonl( broadcast_id );
-	populated_odr_frame->destination_canonical_ip_address = destination_canonical_ip_address;
+	strcpy(populated_odr_frame->destination_canonical_ip_address, destination_canonical_ip_address);
 	populated_odr_frame->number_of_hops_to_destination = htonl(number_of_hops_to_destination);
 
 	populated_odr_frame->route_rediscovery_flag = htonl( route_rediscovery_flag );
 
-	return odr_frame;
+	return populated_odr_frame;
 }
 
 /*
@@ -434,20 +434,20 @@ struct odr_frame * createApplicationPayloadMessage( char * source_canonical_ip_a
 							   						int number_of_hops_to_destination, int source_application_port_number,
 							   						int destination_application_port_number, int number_of_bytes_in_application_message )
 {
-	printf("Size of the ODR Frame : %d bytes\n", sizeof( struct odr_frame ) );	
+	
 	struct odr_frame * populated_odr_frame = (struct odr_frame *) malloc( sizeof( struct odr_frame ) );
-
+	printf("Size of the ODR Frame : %d bytes\n", sizeof( struct odr_frame ) );	
 	populated_odr_frame->control_msg_type = htonl(2);		
-	populated_odr_frame->source_canonical_ip_address = source_canonical_ip_address;
+	strcpy(populated_odr_frame->source_canonical_ip_address, source_canonical_ip_address);
 	populated_odr_frame->broadcast_id = htonl( broadcast_id );
-	populated_odr_frame->destination_canonical_ip_address = destination_canonical_ip_address;
+	strcpy(populated_odr_frame->destination_canonical_ip_address, destination_canonical_ip_address);
 	populated_odr_frame->number_of_hops_to_destination = htonl(number_of_hops_to_destination);
 
 	populated_odr_frame->source_application_port_number = htonl( source_application_port_number );
 	populated_odr_frame->destination_application_port_number = htonl( destination_application_port_number );
 	populated_odr_frame->number_of_bytes_in_application_message = htonl( number_of_bytes_in_application_message );	
 
-	return odr_frame;
+	return populated_odr_frame;
 }
 
 
@@ -692,7 +692,7 @@ do with SOCK_DGRAM type).
 Note from the man pages for packet(7) that frames are passed to and from the
 socket without any processing in the frame content by the device driver on 
 the other side of the socket, except for calculating and tagging on the 4-byte
-CRC trailer for outgoing frames, and stripping that trailer before delivering
+CRC trailer for outgoing frames, and stripping that trailer before deliveringor
 incoming frames to the socket. Nevertheless, if you write a frame that is 
 less than 60 bytes, the necessary padding is automatically added by the 
 device driver so that the frame that is actually transmitted out is the minimum
@@ -732,7 +732,7 @@ printf("select...\n");
    
 printf("select...\n");
 //n=recvfrom(sockfd,data_stream,MAXLINE,0,&procaddr,sizeof(procaddr));
-//printf("%s\n",data_stream );
+//printf("%s\n",data_stream );or
     maxfdp1 = max(packet_socket, sockfd) + 1;
     for ( ; ; ) 
     {
@@ -830,12 +830,12 @@ printf("select...\n");
 	            	if(strcmp(recvd_packet.destination_canonical_ip_address,source_addr)==0)
 	            	{
 	            		//odr is at the destination node 
-	            		msg_send( sockfd,  recvd_packet.destination_canonical_ip_address, "0",  message_to_be_sent, recvd_packet.forced_discovery);
+	            		msg_send( sockfd,  recvd_packet.destination_canonical_ip_address, "0",  message_to_be_sent, recvd_packet.route_rediscovery_flag);
         				
 	            	}else
 	            	{
 
-		            	if(!recvd_packet.forced_discovery)
+		            	if(!recvd_packet.route_rediscovery_flag)
 						{
 							printf("checking entry for `%s` in routing table  \n", destination_canonical_ip_presentation_format);
 							route_exists=check_if_route_exists(destination_canonical_ip_presentation_format ); //pass address of existing_entry so that its value can be set inside the function
@@ -873,7 +873,7 @@ printf("select...\n");
 		     	}
 	         	else if(recvd_packet.control_msg_type==1) //RREP
 	            {
-	            	recvd_packet.forced_discovery=1;
+	            	recvd_packet.route_rediscovery_flag=1;
 	            	//send_RREP(existing_entry);	
 	            }else//message
 	            {
