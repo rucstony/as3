@@ -490,7 +490,7 @@ long staleness_param;
 	BROADCAST ODR FRAME
 	Straps on the ethernet header to the odr-frame and sends out on broadcast address. (JUST FOR 1 INTERFACE)
 */
-void sendODRframe( int s , struct odr_frame * populated_odr_frame , char * source_hw_mac_address )
+void sendODRframe1( int s , struct odr_frame * populated_odr_frame , char * source_hw_mac_address )
 {
 	
 	int j;
@@ -568,8 +568,111 @@ printf("sending frame on socket: %d\n",s );
 
 }
 
+void sendODRframe( int s , struct odr_frame * populated_odr_frame , char * source_hw_mac_address )
+{
+	
+	int j;
+	/*target address*/
+	struct sockaddr_ll socket_address;
+
+	/*buffer for ethernet frame*/
+	void* buffer = (void*)malloc(ETH_FRAME_LEN);
+	 
+	/*pointer to ethenet header*/
+	unsigned char* etherhead = buffer;
+		
+	/*pointer to userdata in ethernet frame*/
+	unsigned char* data = buffer + 14;
+		
+	/*another pointer to ethernet header*/
+	struct ethhdr *eh = (struct ethhdr *)etherhead;
+	 
+	int send_result = 0;
+
+	/*our MAC address*/
+
+	unsigned char src_mac[6] = {0x00, 0x0c, 0x29, 0x11, 0x58, 0xa2};
+
+	/*Broadcast MAC address*/
+	//unsigned char dest_mac[6] = {0x00, 0x0c, 0x29, 0x24, 0x8f, 0x70};
+	unsigned char dest_mac[6] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
+	printf("sending frame on socket: %d\n",s );
+	/*prepare sockaddr_ll*/
+
+	/*RAW communication*/
+	socket_address.sll_family   = PF_PACKET;	
+	/*we don't use a protocoll above ethernet layer
+	  ->just use anything here*/
+	socket_address.sll_protocol = htons(ETH_P_IP);	
+
+	/*ARP hardware identifier is ethernet*/
+	socket_address.sll_hatype   = ARPHRD_ETHER;
+		
+	/*target is another host*/
+	socket_address.sll_pkttype  = PACKET_OTHERHOST;
+
+	/*index of the network device
+	see full code later how to retrieve it*/
+	socket_address.sll_ifindex  = 3;
+
+	/*address length*/
+	socket_address.sll_halen    = ETH_ALEN;		
+	
+	/*MAC - begin*/
+	socket_address.sll_addr[0]  = 0xFF;		
+	socket_address.sll_addr[1]  = 0xFF;		
+	socket_address.sll_addr[2]  = 0xFF;
+	socket_address.sll_addr[3]  = 0xFF;
+	socket_address.sll_addr[4]  = 0xFF;
+	socket_address.sll_addr[5]  = 0xFF;
+	/*MAC - end*/
+	socket_address.sll_addr[6]  = 0x00;/*not used*/
+	socket_address.sll_addr[7]  = 0x00;/*not used*/
+
+	/*set the frame header*/
+	memcpy((void*)buffer, (void*)dest_mac, ETH_ALEN);
+	memcpy((void*)(buffer+ETH_ALEN), (void*)src_mac, ETH_ALEN);
+	eh->h_proto = htons(USID_PROTO);
+	/*fill the frame with some data*/
+	memcpy((void*)data,(void*)populated_odr_frame, sizeof( struct odr_frame ));
+/*
+	for (j = 0; j < 1500; j++) {
+		data[j] = (unsigned char)((int) (255.0*rand()/(RAND_MAX+1.0)));
+	}
+*/
+	/*send the packet*/
+	send_result = sendto(s, buffer, ETH_FRAME_LEN, 0, 
+		      (struct sockaddr*)&socket_address, sizeof(socket_address));
+	if (send_result == -1){ perror("sendto"); }
+
+}
+
+struct odr_frame * processRecievedPacket(char * str_from_sock)
+{
+	//struct odr_frame * recieved_odr_frame = (struct odr_frame *)malloc( sizeof( struct odr_frame ) );
+	struct odr_frame * recieved_odr_frame;
+
+	int j;
+	/*target address*/
+	struct sockaddr_ll socket_address;
+
+	/*buffer for ethernet frame*/
+	void* buffer = (void*)malloc(ETH_FRAME_LEN);
+	
+	memcpy((void*)buffer, (void*)str_from_sock, ETH_FRAME_LEN ); 
 
 
+	/*pointer to ethenet header*/
+	unsigned char* etherhead = buffer;
+		
+	/*pointer to userdata in ethernet frame*/
+	void * data = buffer + 14;
+		
+	odr_frame = (struct odr_frame *)data;
+
+	return odr_frame;
+
+}
 
 int main(int argc, char const *argv[])
 {
