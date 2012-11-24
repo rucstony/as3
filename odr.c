@@ -461,7 +461,7 @@ void sendRREP( int sockfd, struct odr_frame * recieved_odr_frame )
 	
 	re =  routing_table_lookup( recieved_odr_frame->source_canonical_ip_address );
 
-	source_mac = retrieveMacFromInterfaceIndex( re->outgoing_interface_index );
+	memcpy(source_mac,retrieveMacFromInterfaceIndex( re->outgoing_interface_index ),6);
 
 	printf("Sending an RREP back on interface %d..\n", re->outgoing_interface_index );
 	sendODRframe(sockfd, recieved_odr_frame , source_mac, re->next_hop_node_ethernet_address, re->outgoing_interface_index);
@@ -471,8 +471,8 @@ void sendRREP( int sockfd, struct odr_frame * recieved_odr_frame )
 
 void transmitAppPayloadMessage( int s, struct routing_entry * re ,struct odr_frame * recieved_odr_frame )
 {
-	unsigned char source_mac[6];
-	source_mac = retrieveMacFromInterfaceIndex( re->outgoing_interface_index );
+	char source_mac[6];
+	memcpy(source_mac, retrieveMacFromInterfaceIndex( re->outgoing_interface_index ), 6);
 
 	sendODRframe( s , recieved_odr_frame , source_mac, re->next_hop_node_ethernet_address, re->outgoing_interface_index );
 	return;
