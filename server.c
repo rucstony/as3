@@ -45,7 +45,7 @@ int main()
 	printf("%d\n",sockfd );
 	bzero(&servaddr, sizeof(servaddr));
 	servaddr.sun_family = AF_LOCAL;
-	strcpy(servaddr.sun_path, "UNIX_SERV_PATH");
+	strcpy(servaddr.sun_path, UNIX_SERV_PATH);
 
 	bind(sockfd, (SA *) &servaddr, sizeof(servaddr));
 	 len = sizeof(addr2);
