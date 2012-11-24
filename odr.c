@@ -249,7 +249,7 @@ struct odr_frame
 	uint32_t destination_application_port_number;
 	uint32_t number_of_bytes_in_application_message;	
 
-	char application_data_payload[APP_DATA_PAYLOAD_LEN] = {0};
+	char application_data_payload[APP_DATA_PAYLOAD_LEN];
 };
 
 void update_routing_table( char* destination_canonical_ip_address_presentation_format,	char* next_hop_node_ethernet_address,
@@ -433,7 +433,8 @@ struct odr_frame * createRREP( char * source_canonical_ip_address,
 struct odr_frame * createApplicationPayloadMessage( char * source_canonical_ip_address,
 							   						int broadcast_id, char * destination_canonical_ip_address,   
 							   						int number_of_hops_to_destination, int source_application_port_number,
-							   						int destination_application_port_number, int number_of_bytes_in_application_message )
+							   						int destination_application_port_number, char * application_data_payload 
+							   						int number_of_bytes_in_application_message )
 {
 	
 	struct odr_frame * populated_odr_frame = (struct odr_frame *) malloc( sizeof( struct odr_frame ) );
@@ -447,6 +448,7 @@ struct odr_frame * createApplicationPayloadMessage( char * source_canonical_ip_a
 	populated_odr_frame->source_application_port_number = htonl( source_application_port_number );
 	populated_odr_frame->destination_application_port_number = htonl( destination_application_port_number );
 	populated_odr_frame->number_of_bytes_in_application_message = htonl( number_of_bytes_in_application_message );	
+	strcpy(populated_odr_frame->application_data_payload, application_data_payload);
 
 	return populated_odr_frame;
 }
