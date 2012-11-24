@@ -430,10 +430,10 @@ void sendRREP( int sockfd, struct odr_frame * recieved_odr_frame )
 	return;
 }
 
-void transmitAppPayloadMessage( struct routing_entry * re ,struct odr_frame * recieved_odr_frame );
+void transmitAppPayloadMessage( int s, struct routing_entry * re ,struct odr_frame * recieved_odr_frame )
 {
 
-	sendODRframe( int s , recieved_odr_frame , re->next_hop_node_ethernet_address, re->outgoing_interface_index );
+	sendODRframe( s , recieved_odr_frame , re->next_hop_node_ethernet_address, re->outgoing_interface_index );
 	return;
 }
 
@@ -448,7 +448,7 @@ void sendToAppLayer( int sockfd, char * application_data_payload ,char * sunpath
     odraddr.sun_family = AF_LOCAL;
     strcpy(odraddr.sun_path, sunpath);
 
-	sendto(sockfd_for_write,output_to_sock,strlen(output_to_sock),0,&odraddr,sizeof(odraddr));
+	sendto(sockfd,output_to_sock,strlen(output_to_sock),0,&odraddr,sizeof(odraddr));
     printf("sendto : %s\n", hstrerror(h_errno));
 
 	return;
@@ -477,7 +477,7 @@ void recvAppPayloadMessage( int sockfd, struct odr_frame * recieved_odr_frame )
 	else
 	{
 		re = routing_table_lookup( recieved_odr_frame->destination_canonical_ip_address );	
-		transmitAppPayloadMessage( re ,recieved_odr_frame );
+		transmitAppPayloadMessage(sockfd,  re ,recieved_odr_frame );
 	}	
 }
 
@@ -696,7 +696,7 @@ void sendODRframe( int s , struct odr_frame * populated_odr_frame , char * sourc
 
 	/*our MAC address*/
 	unsigned char src_mac[6]; 
-	 char * src_mac1=source_hw_mac_address; 
+	 char src_mac1[100]=source_hw_mac_address; 
 //	unsigned char src_mac[6] = {0x00, 0x0c, 0x29, 0x11, 0x58, 0xa2};
 	
 	/*Broadcast MAC address*/
@@ -818,7 +818,9 @@ int main(int argc, char const *argv[])
 	void* buffer = (void*)malloc(ETH_FRAME_LEN); /*Buffer for ethernet frame*/
 	int length = 0; /*length of the received frame*/ 
 	int notifyOthers;
-
+  	char * src_mac1;
+  	char next_hop_node_ethernet_address[100], source_hw_mac_address[100];
+  	int ihw,khw=0;
 	if(argc<2)
 	{
 		printf("Invalid args: ODR <Staleness parameter in seconds>\n");
@@ -1089,8 +1091,25 @@ The ODR process also creates a domain datagram socket for communication with app
 	        if((n=recvfrom(packet_socket,buffer, ETH_FRAME_LEN, 0, &odraddr, &odrlen)>0))
 	        {
 	          	
-				printf("Received packet from ODR at interface %d...\n",odraddr.sll_ifindex);
+	        	source_hw_mac_address=odraddr.sll_addr;
+
+ 				src_mac1=source_hw_mac_address; 
+				ihw = IF_HADDR;
 	        		
+	        		printf("Received packet from hw address:");
+				do 
+				{	
+					next_hop_node_ethernet_address[khw] = odraddr.sll_addr[khw] & 0xff;
+					
+					printf("%.2x%s", next_hop_node_ethernet_address[khw] & 0xff, (ihw == 1) ? " " : ":");
+					khw++;
+				} while (--ihw > 0);
+				printf("\n at interface %d...\n",odraddr.sll_ifindex);
+
+
+
+				printf("Received packet from ODR at interface %d...\n",odraddr.sll_ifindex);
+	        	
 
 	        	if (n == -1)
 	        	{ 
