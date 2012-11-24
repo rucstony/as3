@@ -274,7 +274,7 @@ void update_routing_table( char* destination_canonical_ip_address_presentation_f
 
 
 /* DO THIS BEFORE GENERATING AN RREP WHEN APPROPRIATE */
-void enterReverseRoute( char* destination_canonical_ip_address_presentation_format,	char* rreq_ethernet_header_next_hop_node_ethernet_address,
+int enterReverseRoute( char* destination_canonical_ip_address_presentation_format,	char* rreq_ethernet_header_next_hop_node_ethernet_address,
 						char* outgoing_interface_index, int number_of_hops_to_destination )
 {
 	struct routing_entry * node;
@@ -283,17 +283,23 @@ void enterReverseRoute( char* destination_canonical_ip_address_presentation_form
 	{
 		insert_to_routing_table( destination_canonical_ip_address_presentation_format, rreq_ethernet_header_next_hop_node_ethernet_address,
 								 outgoing_interface_index, number_of_hops_to_destination );
+		return 1;
 	}
 	else
 	{
-		if( (node->number_of_hops_to_destination > number_of_hops_to_destination) 
-			|| ( strcmp(node->next_hop_node_ethernet_address, rreq_ethernet_header_next_hop_node_ethernet_address)!=0 ) )
+		if( (node->number_of_hops_to_destination > number_of_hops_to_destination) )
 		{
 			update_routing_table( destination_canonical_ip_address_presentation_format, rreq_ethernet_header_next_hop_node_ethernet_address,
 								  outgoing_interface_index, number_of_hops_to_destination );
+			return 1;			
 		}	
-	}	
-
+		else if(  ( strcmp(node->next_hop_node_ethernet_address, rreq_ethernet_header_next_hop_node_ethernet_address)!=0 ) )
+		{
+			update_routing_table( destination_canonical_ip_address_presentation_format, rreq_ethernet_header_next_hop_node_ethernet_address,
+								  outgoing_interface_index, number_of_hops_to_destination );
+		}
+	}
+	return 0;	
 }
 
 
@@ -713,7 +719,7 @@ int main(int argc, char const *argv[])
 	fd_set rset;
 	void* buffer = (void*)malloc(ETH_FRAME_LEN); /*Buffer for ethernet frame*/
 	int length = 0; /*length of the received frame*/ 
-
+	int notifyOthers;
 
 	if(argc<2)
 	{
@@ -948,7 +954,7 @@ The ODR process also creates a domain datagram socket for communication with app
 
 				if(route_exists)
 				{
-					printf("Route found! \n SEND RREP\n");
+					printf("Route found! \n SEND MESG\n");
 					//send_message(existing_entry);
 
 
@@ -1002,13 +1008,16 @@ The ODR process also creates a domain datagram socket for communication with app
 	            if(recvd_packet->control_msg_type==0) //RREQ
 	            {
 
-					enterReverseRoute( recvd_packet->source_canonical_ip_address,
+					notifyOthers = enterReverseRoute( recvd_packet->source_canonical_ip_address,
 										"rreq_ethernet_header_next_hop_node_ethernet_address",
 										/*interface index*/3,recvd_packet->number_of_hops_to_destination );
 	            	if(strcmp(recvd_packet->destination_canonical_ip_address,source_addr)==0)
 	            	{
 	            		//odr is at the destination node 
-	            		msg_send( sockfd,  recvd_packet->destination_canonical_ip_address, "0",  message_to_be_sent, recvd_packet->route_rediscovery_flag);
+	            		if(!recvd_packet->RREP_sent_flag)
+	            		{
+		            	// send an RREP here. 
+	            		}
         				
 	            	}else
 	            	{
@@ -1030,25 +1039,28 @@ The ODR process also creates a domain datagram socket for communication with app
 							 
 		            		if(!recvd_packet->RREP_sent_flag)
 		            		{
-		            			printf("RREP already sent for this route\n");
 		            			//send_RREP(existing_entry);	
 		            		}
+		            		else
+		            		{
+								printf("RREP already sent for this route\n");
+		            		}
 
-
-							//if(source not in routing list )
+							if(notifyOthers)
 							{
-								printf("Send RREQ to others to notify of new route \n SEND RREQ\n");
-								//send_RREQ(RREQ);
+								recvd_packet->RREP_sent_flag=1;
 							}
 							
 						}else
 						{
 							printf("Route not found..\n");
-
-							//send_RREQ(recvd_packet);
+							
 						}
+						floodRREQ( packet_socket, 3/*recieved_interface_index*/, recv_packet->source_canonical_ip_address,
+									   recvd_packet->broadcast_id, recvd_packet->destination_canonical_ip_address,   
+									   recvd_packet->number_of_hops_to_destination, recvd_packet->RREP_sent_flag, recvd_packet->route_rediscovery_flag );
 					
-		         }
+		         	}
 		     	}
 	         	else if(recvd_packet->control_msg_type==1) //RREP
 	            {
