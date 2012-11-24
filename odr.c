@@ -450,6 +450,32 @@ struct odr_frame * createApplicationPayloadMessage( char * source_canonical_ip_a
 	return populated_odr_frame;
 }
 
+/*
+	Pushes in the source eth0 canonical IP address into a global variable. 
+*/
+char * getOwnCanonicalIPAddress()
+{
+	struct hwa_info	*hwa, *hwahead;
+	struct sockaddr_in * ip_address_structure;
+	char * own_canonical_ip_address;
+
+	/* Flood with broadcast address on all interfaces except eth0 and lo and recieved interface */
+	for (hwahead = hwa = Get_hw_addrs(); hwa != NULL; hwa = hwa->hwa_next) 
+	{
+		if( strcmp(hwa->if_name, "eth0")==0 )
+		{	
+			ip_address_structure = (struct sockaddr_in *)hwa->ip_addr; 		
+			own_canonical_ip_address = inet_ntop( ip_address_structure->sin_addr->s_addr );
+		}
+		else
+		{
+			own_canonical_ip_address = "Not found..";
+		}
+		printf("\nSelf's canonical IP address : %s\n", own_canonical_ip_address);	
+	}	
+	return own_canonical_ip_address;
+}
+
 
 struct routing_entry * check_if_route_exists( char * destination_canonical_ip_presentation_format );
 //routing_entry recv_ODR();
