@@ -465,7 +465,7 @@ char * getOwnCanonicalIPAddress()
 		if( strcmp(hwa->if_name, "eth0")==0 )
 		{	
 			ip_address_structure = (struct sockaddr_in *)hwa->ip_addr; 		
-			inet_ntop( AF_INET, ip_address_structure->sin_addr->s_addr, own_canonical_ip_address, 100 );
+			inet_ntop( AF_INET, (ip_address_structure->sin_addr).s_addr, own_canonical_ip_address, 100 );
 		}
 		else
 		{
