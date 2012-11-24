@@ -457,7 +457,7 @@ char * getOwnCanonicalIPAddress()
 {
 	struct hwa_info	*hwa, *hwahead;
 	struct sockaddr_in * ip_address_structure;
-	char * own_canonical_ip_address;
+	char own_canonical_ip_address[100];
 
 	/* Flood with broadcast address on all interfaces except eth0 and lo and recieved interface */
 	for (hwahead = hwa = Get_hw_addrs(); hwa != NULL; hwa = hwa->hwa_next) 
@@ -465,11 +465,11 @@ char * getOwnCanonicalIPAddress()
 		if( strcmp(hwa->if_name, "eth0")==0 )
 		{	
 			ip_address_structure = (struct sockaddr_in *)hwa->ip_addr; 		
-			own_canonical_ip_address = inet_ntop( ip_address_structure->sin_addr->s_addr );
+			inet_ntop( AF_INET, ip_address_structure->sin_addr->s_addr, own_canonical_ip_address, 100 );
 		}
 		else
 		{
-			own_canonical_ip_address = "Not found..";
+			strcpy(own_canonical_ip_address, "Not found..");
 		}
 		printf("\nSelf's canonical IP address : %s\n", own_canonical_ip_address);	
 	}	
