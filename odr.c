@@ -744,27 +744,36 @@ mind that the field values in that header have to be in network order.
 The ODR process also creates a domain datagram socket for communication with application processes
  at the node, and binds the socket to a ‘well known’ sun_path name for the ODR service.
 */
- 	packet_socket = socket(PF_PACKET, SOCK_RAW, htons(USID_PROTO));
+ 	if((packet_socket = socket(PF_PACKET, SOCK_RAW, htons(USID_PROTO)))==-1)
+ 	{
+ 		printf("Error in creation of socket for PF_PACKET\n");
+ 		perror("socket");
+ 		return 0;
+ 	}
 
- 	printf("%s\n",hstrerror(h_errno) );
-	sockfd = socket(AF_LOCAL, SOCK_DGRAM, 0);
+ 
+ 	if((sockfd = socket(AF_LOCAL, SOCK_DGRAM, 0))==-1)
+ 	{
+ 		printf("Error in creation of Unix Domain socket\n");
+		perror("socket");
+		return;
+		
+	}
 	unlink(UNIXDG_PATH);
-
 	bzero(&servaddr, sizeof(servaddr));
 	servaddr.sun_family = AF_LOCAL;
 	strcpy(servaddr.sun_path, UNIXDG_PATH);
 
 	bind(sockfd, (SA *) &servaddr, SUN_LEN(&servaddr));
-	printf("socket bound %d\n", sockfd);
+
+	printf("unix domain socket bound %d\n", sockfd);
 
 	printf(" packet_socket socket bound %d\n", packet_socket);
    
     
 	//sendto(sockfd,"hello\n",10,0,&odraddr,sizeof(odraddr));
     //printf("sendto : %s\n", hstrerror(h_errno));
-printf("select...\n");
-   
-printf("select...\n");
+
 //n=recvfrom(sockfd,data_stream,MAXLINE,0,&procaddr,sizeof(procaddr));
 //printf("%s\n",data_stream );or
     maxfdp1 = max(packet_socket, sockfd) + 1;
@@ -809,9 +818,9 @@ printf("select...\n");
 				 destination_port_number=atoi(msg_fields[1]);
 				 message_to_be_sent=msg_fields[2];
 				 route_rediscovery_flag=atoi(msg_fields[3]);
-				 sendODRframe(packet_socket,NULL,NULL);
-				 printf("sending PF done\n");
-				/*
+				 
+				 
+				
 				if(!route_rediscovery_flag)
 				{
 					printf("checking entry for `%s` in routing table  \n", destination_canonical_ip_presentation_format);
@@ -833,15 +842,17 @@ printf("select...\n");
 				}else
 				{
 					printf("Route not found..\n");
-					strcpy(RREQ.source_addr,source_addr);
+					
 					broadcast_id++;
-					RREQ.broadcast_id = broadcast_id;//incremented every time the source issues new RREQ
-					strcpy(RREQ.destination_canonical_ip_address,destination_canonical_ip_presentation_format);
-					RREQ.number_of_hops_to_destination=0; //sending RREQ from source
-					RREQ.control_msg_type=1; //(RREQ = 1)
-					//send_RREQ(RREQ);
+					printf("New Broadcast id is : \n", broadcast_id);		
+					//recieved_interface_index
+					floodRREQ( packet_socket, 1, source_addr,
+								broadcast_id, destination_canonical_ip_presentation_format,   
+								0, 0,
+								route_rediscovery_flag );
+					printf("RREQ broadcast sent..\n");
 				}
-				*/
+				
 			}//else
 			//{
 			//	printf("receive error : %s\n",hstrerror(h_errno) );
@@ -858,9 +869,12 @@ printf("select...\n");
 	        	if (n == -1) { printf("Error in recieving data from client..\n"); exit(0);}
 	        	else{ printf("Recieved Packet Size : %d\n",n ); }
 	            //recvd_packet = processPacket(str_from_sock);
-
+/*
 	            if(recvd_packet.control_msg_type==0) //RREQ
 	            {
+					enterReverseRoute( destination_canonical_ip_address_presentation_format,
+										rreq_ethernet_header_next_hop_node_ethernet_address,
+										outgoing_interface_index,number_of_hops_to_destination );
 	            	if(strcmp(recvd_packet.destination_canonical_ip_address,source_addr)==0)
 	            	{
 	            		//odr is at the destination node 
@@ -900,6 +914,7 @@ printf("select...\n");
 						}else
 						{
 							printf("Route not found..\n");
+
 							//send_RREQ(recvd_packet);
 						}
 					
@@ -912,7 +927,7 @@ printf("select...\n");
 	            }else//message
 	            {
 
-	            }
+	            }*/
 		     }
 		    }
 	       
