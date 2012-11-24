@@ -203,19 +203,20 @@ int routing_table_delete_entry( char * destination_canonical_ip_address )
 void print_routing_table()
 {
 	struct routing_entry *node; 	
+	printf("\n***************************\n");
+	printf("Printing Routing Table\n");
+	printf("\n***************************\n");
 
 	node = rt_head;
 	while( node != NULL )
 	{
-		printf("\n***************************\n");
-		printf("Printing Routing Table\n");
-		printf("\n***************************\n");
 
 		printf("-->Destination IP : %s,Outgoing Interface Index : %d", node->destination_canonical_ip_address,node->outgoing_interface_index );
-		printf("\n***************************\n");
 
 		node = node->next;
 	}
+	printf("\n***************************\n");
+
 	printf("\n");
 	return;	
 }
@@ -812,27 +813,26 @@ struct odr_frame * processRecievedPacket(char * str_from_sock)
 	return recieved_odr_frame;
 
 }
-
 /*
-*/
 void transmitAppPayloadMessage( int sockfd, char * source_canonical_ip_address,
 								int broadcast_id, char * destination_canonical_ip_address,   
 								int number_of_hops_to_destination, char * message, 
 								int destination_application_port_number, int source_application_port_number )
 {
 	struct odrframe * populated_odr_frame;
+	struct routing_entry * re;
+
 	populated_odr_frame =  createApplicationPayloadMessage( source_canonical_ip_address,
 							   								broadcast_id, destination_canonical_ip_address,   
 							   								number_of_hops_to_destination, source_application_port_number,
 							   								destination_application_port_number, message ,
 							   								sizeof( message ) );
-	struct routing_entry * re;
 	re = routing_table_lookup( destination_canonical_ip_address );
 
 	sendODRframe( sockfd , populated_odr_frame , re->next_hop_node_ethernet_address, re->outgoing_interface_index );
 	return;
 }
-
+*/
 
 int main(int argc, char const *argv[])
 {
