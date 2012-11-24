@@ -108,7 +108,6 @@ int port_sunpath_delete( char * sunpath )
 	return -1;
 }
 
-/* UPDATE ODR.C WITH THIS FUNCTION. */
 void insert_to_routing_table( 	char* destination_canonical_ip_address,	char* next_hop_node_ethernet_address,
 								int outgoing_interface_index, int number_of_hops_to_destination )
 {
@@ -855,16 +854,157 @@ struct odr_frame * processRecievedPacket(char * str_from_sock)
 	return recieved_odr_frame;
 
 }
+struct odr_frame
+{
+	uint32_t control_msg_type; /* RREQ / RREP/ application payload */
+
+	char source_canonical_ip_address[INET_ADDRSTRLEN];
+	//source_sequence_#
+	uint32_t broadcast_id; //incremented every time the source issues new RREQ
+	char destination_canonical_ip_address[INET_ADDRSTRLEN];
+	//dest_sequence_#
+	uint32_t number_of_hops_to_destination;
+
+	uint32_t RREP_sent_flag; /* Only for RREQ's */
+	uint32_t route_rediscovery_flag; /* RREQs & RREPs */
+
+	/* Application payload specific information. */
+	uint32_t source_application_port_number;
+	uint32_t destination_application_port_number;
+	uint32_t number_of_bytes_in_application_message;	
+
+	char application_data_payload[APP_DATA_PAYLOAD_LEN];
+};
+
+struct rreq_list
+{
+	int broadcast_id;
+	char source_canonical_ip_address[INET_ADDRSTRLEN];
+	struct rreq_list * next;
+}rl_head,rl_tmp;
+
+void insert_to_rreq_list( int broadcast_id ,char* source_canonical_ip_address )
+{
+
+    struct rreq_list *node = (struct rreq_list *)malloc( sizeof(struct rreq_list) );
+
+    strcpy( node->source_canonical_ip_address, source_canonical_ip_address );
+    node->broadcast_id =  broadcast_id ;
+    
+    if( rl_head == NULL )
+    {
+      rl_head = node;
+      rl_head->next = NULL;			
+    } 
+    else if( rl_head->next == NULL )
+    {
+      rl_head->next = node;
+      node->next = NULL;			
+    } 
+    else
+    {
+      rl_tmp = rl_head->next;       
+      rl_head->next = node;
+      node->next = rl_tmp;            
+    } 
+ 	return;
+ }
+
+struct rreq_list * rreq_list_lookup( char * source_canonical_ip_address )
+{
+	struct rreq_list *node; 	
+
+	node = rl_head;
+	while( node != NULL )
+	{
+		if( strcmp( node->source_canonical_ip_address, source_canonical_ip_address ) == 0 )
+		{
+			return node;
+		}	
+		node = node->next;
+	}
+	return NULL;	
+}
+
+int rreq_list_delete_entry( char * source_canonical_ip_address )
+{
+	struct rreq_list *node; 	
+	struct rreq_list *prev; 	
+
+	node = rl_head; 
+	while( node != NULL )	
+	{
+		if( strcmp( node->source_canonical_ip_address, source_canonical_ip_address ) == 0 )
+		{
+			prev->next = node->next;
+			node->next = NULL;
+			free(node);	
+			return 1;
+		}	
+		prev = node;
+		node = node->next;
+	}	
+	return -1;
+}
+
+void print_rreq_list()
+{
+	struct rreq_list *node; 	
+	printf("\n***************************\n");
+	printf("Printing RREQ List For Node\n");
+	printf("\n***************************\n");
+
+	node = rl_head;
+	while( node != NULL )
+	{
+
+		printf("-->Source IP : %s,Broadcast ID : %d", node->source_canonical_ip_address,node->broadcast_id );
+
+		node = node->next;
+	}
+	printf("\n***************************\n");
+
+	printf("\n");
+	return;	
+}
+
+int enterNewRREQtoList( int broadcast_id, char * source_canonical_ip_address )
+{
+	struct rreq_list * rl;
+	rl = rreq_list_lookup( source_canonical_ip_address );
+	
+	if( rl == NULL )
+	{	
+		insert_to_rreq_list( broadcast_id, source_canonical_ip_address );
+		return 1;
+	}
+	return 0;	
+}
+
+// before inserting route, lookup and check if exists  
 
 void processRREQPacket( int packet_socket, struct odr_frame * recvd_packet,  
 						char * next_hop_node_ethernet_address, struct sockaddr_ll  odraddr, char * source_addr )
 {
-	int route_exists, notifyOthers;
+	int route_exists, notifyOthers, new_rreq;
+	struct rreq_list * rl;	
 	printf("5\n");
+
+	new_rreq = enterNewRREQtoList( recvd_packet->broadcast_id, recvd_packet->source_canonical_ip_address );
 
 	notifyOthers = enterReverseRoute( recvd_packet->source_canonical_ip_address,
 									  next_hop_node_ethernet_address,
 									  /*interface index*/odraddr.sll_ifindex,recvd_packet->number_of_hops_to_destination );
+	
+	rl = rreq_list_lookup( recvd_packet->source_canonical_ip_address );									  
+
+	if( (!notifyOthers) 
+		&& (!new_rreq)
+		&& ( recvd_packet->broadcast_id <= rl->broadcast_id  ) )
+	{
+		printf("Duplicate RREQ..\n");
+		return;
+	}	
 	printf("6\n");
 	if(strcmp(recvd_packet->destination_canonical_ip_address,source_addr)==0)
 	{
