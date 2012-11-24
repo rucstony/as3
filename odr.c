@@ -881,7 +881,7 @@ struct rreq_list
 	int broadcast_id;
 	char source_canonical_ip_address[INET_ADDRSTRLEN];
 	struct rreq_list * next;
-}rl_head,rl_tmp;
+}*rl_head,*rl_tmp;
 
 void insert_to_rreq_list( int broadcast_id ,char* source_canonical_ip_address )
 {
