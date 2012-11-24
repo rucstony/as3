@@ -7,11 +7,11 @@
 #include <linux/if_ether.h>
 #include <linux/if_arp.h>
 #define USID_PROTO 0x4481
-#define PROTOCOL_VALUE 108817537
 #define ETH_FRAME_LEN 1514
 #define ROUTING_BUF_SIZE 100
 #define UNIXDG_PATH "testpath"
 #define UNIX_SERV_PATH "unixservpath"
+#define APP_DATA_PAYLOAD_LEN 1436
 
 
 struct routing_entry 
@@ -249,6 +249,7 @@ struct odr_frame
 	uint32_t destination_application_port_number;
 	uint32_t number_of_bytes_in_application_message;	
 
+	char application_data_payload[APP_DATA_PAYLOAD_LEN] = {0};
 };
 
 void update_routing_table( char* destination_canonical_ip_address_presentation_format,	char* next_hop_node_ethernet_address,
