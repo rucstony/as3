@@ -421,7 +421,7 @@ void sendRREP( int sockfd, struct odr_frame * recieved_odr_frame )
 	struct hwa_info	*hwa, *hwahead;
 	struct routing_entry * re; 
 	
-	recieved_odr_frame->control_msg_type = 2;
+	recieved_odr_frame->control_msg_type = 1;
 	
 	re =  routing_table_lookup( recieved_odr_frame->source_canonical_ip_address );
 
@@ -445,9 +445,9 @@ void recvAppPayloadMessage( struct odr_frame * recieved_odr_frame )
 		strcpy(application_data_payload,recieved_odr_frame->application_data_payload);
 		application_port_number = ntohl(recieved_odr_frame->destination_application_port_number);	 
 		psme = port_sunpath_lookup( NULL, application_port_number );
-		sunpath = psme->sunpath;
+		//sunpath = psme->sunpath;
 		
-		sendto(sockfd_for_write,output_to_sock,strlen(output_to_sock),0,&odraddr,sizeof(odraddr));
+		//sendto(sockfd_for_write,output_to_sock,strlen(output_to_sock),0,&odraddr,sizeof(odraddr));
 
 	}	
 }
@@ -1059,7 +1059,9 @@ The ODR process also creates a domain datagram socket for communication with app
         	odrlen=sizeof(odraddr);
 	        if((n=recvfrom(packet_socket,buffer, ETH_FRAME_LEN, 0, &odraddr, &odrlen)>0))
 	        {
-	           printf("Received packet from ODR...\n");
+	          	
+				printf("Received packet from ODR at interface %d...\n",odraddr.sll_ifindex);
+	        		
 
 	        	if (n == -1)
 	        	{ 
@@ -1125,7 +1127,7 @@ The ODR process also creates a domain datagram socket for communication with app
 							printf("Route not found..\n");
 							
 						}
-						floodRREQ( packet_socket, 3/*recieved_interface_index*/, recv_packet->source_canonical_ip_address,
+						floodRREQ( packet_socket, 3/*recieved_interface_index*/, recvd_packet->source_canonical_ip_address,
 									   recvd_packet->broadcast_id, recvd_packet->destination_canonical_ip_address,   
 									   recvd_packet->number_of_hops_to_destination, recvd_packet->RREP_sent_flag, recvd_packet->route_rediscovery_flag );
 					
