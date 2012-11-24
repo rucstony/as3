@@ -60,6 +60,7 @@ void insert_to_port_sunpath_mapping( char * sunpath, int port )
  	return;
  }
 
+/*
 struct port_sunpath_mapping_entry * port_sunpath_lookup( char * sunpath )
 {
 	struct port_sunpath_mapping_entry *node; 	
@@ -75,6 +76,34 @@ struct port_sunpath_mapping_entry * port_sunpath_lookup( char * sunpath )
 	}
 	return NULL;	
 }
+*/
+
+struct port_sunpath_mapping_entry * port_sunpath_lookup( char * sunpath, int application_port_number )
+{
+	struct port_sunpath_mapping_entry *node; 	
+
+	node = psm_head;
+	while( node != NULL )
+	{
+		if( sunpath != NULL )
+		{	
+			if( strcmp( node->sunpath, sunpath ) == 0 )
+			{
+				return node;
+			}
+		}
+		else
+		{
+			if( node->port == application_port_number )
+			{
+				return node;
+			}	
+		}	
+		node = node->next;
+	}
+	return NULL;	
+}
+
 
 int port_sunpath_delete( char * sunpath )
 {
@@ -401,6 +430,27 @@ void sendRREP( int sockfd, struct odr_frame * recieved_odr_frame )
 	return;
 }
 
+void recvAppPayloadMessage( struct odr_frame * recieved_odr_frame )
+{
+	char own_canonical_ip_address[INET_ADDRSTRLEN];
+	char application_data_payload[APP_DATA_PAYLOAD_LEN];
+	int application_port_number;
+	struct port_sunpath_mapping_entry * psme;
+	char sunpath[100];
+
+	getOwnCanonicalIPAddress(own_canonical_ip_address);
+	// (if at destination)Stuff the data_payload into message array and send to x based on port mapping data. 
+	if( strcmp(recieved_odr_frame->destination_canonical_ip_address,own_canonical_ip_address ) )
+	{
+		strcpy(application_data_payload,recieved_odr_frame->application_data_payload);
+		application_port_number = ntohl(recieved_odr_frame->destination_application_port_number);	 
+		psme = port_sunpath_lookup( NULL, application_port_number );
+		sunpath = psme->sunpath;
+		
+		sendto(sockfd_for_write,output_to_sock,strlen(output_to_sock),0,&odraddr,sizeof(odraddr));
+
+	}	
+}
 
 /*
 	CREATE RREQ
