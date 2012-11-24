@@ -392,6 +392,7 @@ void floodRREQ( int sockfd, int recieved_interface_index, char * source_canonica
 				int route_rediscovery_flag )
 {
 	struct hwa_info	*hwa, *hwahead;
+	unsigned char flood_mac[6] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
 
 	struct odr_frame * populated_odr_frame;
 	populated_odr_frame =  createRREQ( source_canonical_ip_address,
@@ -407,7 +408,7 @@ void floodRREQ( int sockfd, int recieved_interface_index, char * source_canonica
 			&& hwa->if_index!=recieved_interface_index )
 		{	
 			printf("Entering SendODR..\n");
-			sendODRframe(sockfd, populated_odr_frame, hwa->if_haddr,hwa->if_index);
+			sendODRframe(sockfd, populated_odr_frame, hwa->if_haddr, flood_mac, hwa->if_index);
 			printf("Leaving SendODR..\n");
 
 		}
@@ -416,26 +417,64 @@ void floodRREQ( int sockfd, int recieved_interface_index, char * source_canonica
 	return;
 }
 
+unsigned char * retrieveMacFromInterfaceIndex( int interface_index )
+{
+	unsigned char source_mac[6];
+	struct hwa_info	*hwa, *hwahead;
+	struct sockaddr_in * ip_address_structure;
+	int k,i;
+	char   *ptr,*ptr1;
+	
+	/* Flood with broadcast address on all interfaces except eth0 and lo and recieved interface */
+	for (hwahead = hwa = Get_hw_addrs(); hwa != NULL; hwa = hwa->hwa_next) 
+	{
+		if( hwa->if_index == interface_index )
+		{	
+
+			ptr = hwa->if_haddr;
+			ptr1 = hwa->if_haddr;
+
+			i = IF_HADDR;
+			k=0;
+			do 
+			{	
+				source_mac[k] = *ptr++ & 0xff;
+				k++;
+				printf("%.2x%s", *ptr1++ & 0xff, (i == 1) ? " " : ":");
+			} while (--i > 0);
+
+		
+		}
+	}
+
+	return source_mac;
+}
+
 /* FIX THIS  */
 void sendRREP( int sockfd, struct odr_frame * recieved_odr_frame )
 {
 	struct hwa_info	*hwa, *hwahead;
 	struct routing_entry * re; 
-	
+	unsigned char source_mac[6];
+
 	recieved_odr_frame->control_msg_type = 1;
 	
 	re =  routing_table_lookup( recieved_odr_frame->source_canonical_ip_address );
 
+	source_mac = retrieveMacFromInterfaceIndex( re->outgoing_interface_index );
+
 	printf("Sending an RREP back on interface %d..\n", re->outgoing_interface_index );
-	sendODRframe(sockfd, recieved_odr_frame , re->next_hop_node_ethernet_address, re->outgoing_interface_index);
+	sendODRframe(sockfd, recieved_odr_frame , source_mac, re->next_hop_node_ethernet_address, re->outgoing_interface_index);
 
 	return;
 }
 
 void transmitAppPayloadMessage( int s, struct routing_entry * re ,struct odr_frame * recieved_odr_frame )
 {
+	unsigned char source_mac[6];
+	source_mac = retrieveMacFromInterfaceIndex( re->outgoing_interface_index );
 
-	sendODRframe( s , recieved_odr_frame , re->next_hop_node_ethernet_address, re->outgoing_interface_index );
+	sendODRframe( s , recieved_odr_frame , source_mac, re->next_hop_node_ethernet_address, re->outgoing_interface_index );
 	return;
 }
 
@@ -679,7 +718,7 @@ void sendODRframe1( int s , struct odr_frame * populated_odr_frame , char * sour
 /*
 	CHANGE THISSSSS..
 */
-void sendODRframe( int s , struct odr_frame * populated_odr_frame , char * source_hw_mac_address, int if_index )
+void sendODRframe( int s , struct odr_frame * populated_odr_frame , char * source_hw_mac_address, char * destination_hw_mac_address , int if_index )
 {
 	
 	int j,i;
@@ -701,20 +740,36 @@ void sendODRframe( int s , struct odr_frame * populated_odr_frame , char * sourc
 	int send_result = 0,k=0;
 
 	/*our MAC address*/
-	unsigned char src_mac[6]; 
+	unsigned char src_mac[6], dest_mac[6]; 
 
 	char * src_mac1=source_hw_mac_address; 
+	char * dest_mac1=destination_hw_mac_address; 
+
 
 //	unsigned char src_mac[6] = {0x00, 0x0c, 0x29, 0x11, 0x58, 0xa2};
 	
 	/*Broadcast MAC address*/
 	//unsigned char dest_mac[6] = {0x00, 0x0c, 0x29, 0x24, 0x8f, 0x70};
-	unsigned char dest_mac[6] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
-	printf("sending frame on socket: %d\n",s );
-	printf("populated_odr_frame: %d bytes.\n",sizeof(*populated_odr_frame));
-	/*prepare sockaddr_ll*/
+	//unsigned char dest_mac[6] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
 	
 	i = IF_HADDR;
+	printf("\n\nSending ODR Frame \n\t Destination H/W Address :\n");
+	do 
+	{	
+		dest_mac[k] = *destination_hw_mac_address++ & 0xff;
+		k++;
+		printf("%.2x%s", *dest_mac1++ & 0xff, (i == 1) ? " " : ":");
+	} while (--i > 0);
+	printf("\n");
+	
+
+	printf("\tsending frame on socket: %d\n",s );
+	printf("\tpopulated_odr_frame: %d bytes.\n",sizeof(*populated_odr_frame));
+	/*prepare sockaddr_ll*/
+	
+	printf("\t Source H/W Address :\n");
+	i = IF_HADDR;
+	k=0;
 	do 
 	{	
 		src_mac[k] = *source_hw_mac_address++ & 0xff;
@@ -744,12 +799,12 @@ void sendODRframe( int s , struct odr_frame * populated_odr_frame , char * sourc
 
 	printf("Before socket_address..\n");	
 	/*MAC - begin*/
-	socket_address.sll_addr[0]  = 0xFF;		
-	socket_address.sll_addr[1]  = 0xFF;		
-	socket_address.sll_addr[2]  = 0xFF;
-	socket_address.sll_addr[3]  = 0xFF;
-	socket_address.sll_addr[4]  = 0xFF;
-	socket_address.sll_addr[5]  = 0xFF;
+	socket_address.sll_addr[0]  = dest_mac[0];		
+	socket_address.sll_addr[1]  = dest_mac[1];		
+	socket_address.sll_addr[2]  = dest_mac[2];
+	socket_address.sll_addr[3]  = dest_mac[3];
+	socket_address.sll_addr[4]  = dest_mac[4];
+	socket_address.sll_addr[5]  = dest_mac[5];
 	/*MAC - end*/
 	socket_address.sll_addr[6]  = 0x00;/*not used*/
 	socket_address.sll_addr[7]  = 0x00;/*not used*/
@@ -789,7 +844,7 @@ struct odr_frame * convertToNetworkByteOrder( struct odr_frame * recieved_odr_fr
 	if( (control_msg_type == 1) 
 		|| (control_msg_type == 0) )
 	{
-		recieved_odr_frame->route_rediscovery_flag = htonl(route_rediscovery_flag);
+		recieved_odr_frame->route_rediscovery_flag = htonl(recieved_odr_frame->route_rediscovery_flag);
 	}	
 	if( control_msg_type == 2 )
 	{
@@ -831,7 +886,7 @@ struct odr_frame * convertToHostByteOrder( struct odr_frame * recieved_odr_frame
 	if( (control_msg_type == 1) 
 		|| (control_msg_type == 0) )
 	{
-		recieved_odr_frame->route_rediscovery_flag = ntohl(route_rediscovery_flag);
+		recieved_odr_frame->route_rediscovery_flag = ntohl(recieved_odr_frame->route_rediscovery_flag);
 	}	
 	if( control_msg_type == 2 )
 	{
@@ -845,22 +900,16 @@ struct odr_frame * convertToHostByteOrder( struct odr_frame * recieved_odr_frame
 
 struct odr_frame * processRecievedPacket(char * str_from_sock)
 {
-	printf("\nBeginning processing of recieved packet..\n");
 	struct odr_frame * recieved_odr_frame;
-
 	int j;
-	/*target address*/
-	struct sockaddr_ll socket_address;
-
-	/*buffer for ethernet frame*/
-	void* buffer = (void*)malloc(ETH_FRAME_LEN);
-	unsigned char* etherhead = buffer;
-
-	/*pointer to ethenet header*/
+	struct sockaddr_ll socket_address; 	/*target address*/
+	void* buffer = (void*)malloc(ETH_FRAME_LEN); 	/*buffer for ethernet frame*/
+	unsigned char* etherhead = buffer; 	/*pointer to ethenet header*/
+	void * data = buffer + 14;
 	
+	printf("\nBeginning processing of recieved packet..\n");
 		
 	/*pointer to userdata in ethernet frame*/
-	void * data = buffer + 14;
 	printf("1\n");
 		memcpy((void*)buffer, (void*)str_from_sock, ETH_FRAME_LEN ); 
 		printf("2\n");
@@ -895,12 +944,11 @@ void transmitAppPayloadMessage( int sockfd, char * source_canonical_ip_address,
 }
 */
 
-void processRREQPacket( int packet_socket,struct odr_frame * recvd_packet,  
+void processRREQPacket( int packet_socket, struct odr_frame * recvd_packet,  
 						char * next_hop_node_ethernet_address, struct sockaddr_ll  odraddr, char * source_addr )
 {
-	
-	printf("5\n");
 	int route_exists, notifyOthers;
+	printf("5\n");
 
 	notifyOthers = enterReverseRoute( recvd_packet->source_canonical_ip_address,
 									  next_hop_node_ethernet_address,
