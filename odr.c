@@ -18,8 +18,8 @@ struct routing_entry
 {
 
 	char destination_canonical_ip_address[100];
-	char next_hop_node_ethernet_address[100];
-	char outgoing_interface_index[100];
+	char next_hop_node_ethernet_address[6];
+	int outgoing_interface_index;
 	int number_of_hops_to_destination;
 	struct timeval made_or_last_reconfirmed_or_updated_timestamp;
 	struct routing_entry * next;
