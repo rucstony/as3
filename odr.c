@@ -430,13 +430,38 @@ void sendRREP( int sockfd, struct odr_frame * recieved_odr_frame )
 	return;
 }
 
-void recvAppPayloadMessage( struct odr_frame * recieved_odr_frame )
+void transmitAppPayloadMessage( struct routing_entry * re ,struct odr_frame * recieved_odr_frame );
+{
+
+	sendODRframe( int s , recieved_odr_frame , re->next_hop_node_ethernet_address, re->outgoing_interface_index );
+	return;
+}
+
+void sendToAppLayer( int sockfd, char * application_data_payload ,char * sunpath )
+{
+	struct sockaddr_un  odraddr;  
+    char output_to_sock[MAXLINE];
+   	
+    strcpy(output_to_sock, application_data_payload);  
+
+    bzero(&odraddr, sizeof(odraddr)); /* fill in server's address */
+    odraddr.sun_family = AF_LOCAL;
+    strcpy(odraddr.sun_path, sunpath);
+
+	sendto(sockfd_for_write,output_to_sock,strlen(output_to_sock),0,&odraddr,sizeof(odraddr));
+    printf("sendto : %s\n", hstrerror(h_errno));
+
+	return;
+}
+
+void recvAppPayloadMessage( int sockfd, struct odr_frame * recieved_odr_frame )
 {
 	char own_canonical_ip_address[INET_ADDRSTRLEN];
 	char application_data_payload[APP_DATA_PAYLOAD_LEN];
 	int application_port_number;
 	struct port_sunpath_mapping_entry * psme;
 	char sunpath[100];
+	struct routing_entry * re;
 
 	getOwnCanonicalIPAddress(own_canonical_ip_address);
 	// (if at destination)Stuff the data_payload into message array and send to x based on port mapping data. 
@@ -445,10 +470,14 @@ void recvAppPayloadMessage( struct odr_frame * recieved_odr_frame )
 		strcpy(application_data_payload,recieved_odr_frame->application_data_payload);
 		application_port_number = ntohl(recieved_odr_frame->destination_application_port_number);	 
 		psme = port_sunpath_lookup( NULL, application_port_number );
-		//sunpath = psme->sunpath;
+		strcpy(sunpath,psme->sunpath);
 		
-		//sendto(sockfd_for_write,output_to_sock,strlen(output_to_sock),0,&odraddr,sizeof(odraddr));
-
+		sendToAppLayer( sockfd, application_data_payload, sunpath  );
+	}	
+	else
+	{
+		re = routing_table_lookup( recieved_odr_frame->destination_canonical_ip_address );	
+		transmitAppPayloadMessage( re ,recieved_odr_frame );
 	}	
 }
 
