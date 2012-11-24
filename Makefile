@@ -27,7 +27,7 @@ CC = gcc
 
 LIBS = /home/users/cse533/Stevens/unpv13e/libunp.a -lpthread\
 
-FLAGS = -g -O2
+FLAGS = -w -g -O2
 
 CFLAGS = ${FLAGS} -I/home/users/cse533/Stevens/unpv13e/lib
 

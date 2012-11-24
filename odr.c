@@ -257,7 +257,7 @@ void update_routing_table( char* destination_canonical_ip_address_presentation_f
 	struct routing_entry * node;
 	struct timeval curr_time_ms;
 
-	node = routing_table_lookup( destination_canonical_ip_presentation_format );
+	node = routing_table_lookup( destination_canonical_ip_address_presentation_format );
 	gettimeofday(&curr_time_ms, NULL);
 
 	/* Updating the routing table entry. */
@@ -276,10 +276,10 @@ void enterReverseRoute( char* destination_canonical_ip_address_presentation_form
 						char* outgoing_interface_index, int number_of_hops_to_destination )
 {
 	struct routing_entry * node;
-	node = routing_table_lookup( destination_canonical_ip_presentation_format );
+	node = routing_table_lookup( destination_canonical_ip_address_presentation_format );
 	if( node == NULL )
 	{
-		insert_to_routing_table( destination_canonical_ip_presentation_format, next_hop_node_ethernet_address,
+		insert_to_routing_table( destination_canonical_ip_address_presentation_format, rreq_ethernet_header_next_hop_node_ethernet_address,
 								 outgoing_interface_index, number_of_hops_to_destination );
 	}
 	else
@@ -287,7 +287,7 @@ void enterReverseRoute( char* destination_canonical_ip_address_presentation_form
 		if( (node->number_of_hops_to_destination > number_of_hops_to_destination) 
 			|| ( strcmp(node->next_hop_node_ethernet_address, rreq_ethernet_header_next_hop_node_ethernet_address)!=0 ) )
 		{
-			update_routing_table( destination_canonical_ip_presentation_format, next_hop_node_ethernet_address,
+			update_routing_table( destination_canonical_ip_address_presentation_format, rreq_ethernet_header_next_hop_node_ethernet_address,
 								  outgoing_interface_index, number_of_hops_to_destination );
 		}	
 	}	
@@ -385,8 +385,9 @@ struct odr_frame * createRREQ( char * source_canonical_ip_address,
 							   int route_rediscovery_flag )
 
 {
-	printf("Size of the ODR Frame : %d bytes\n", sizeof( struct odr_frame ) );	
 	struct odr_frame * populated_odr_frame = (struct odr_frame *) malloc( sizeof( struct odr_frame ) );
+	printf("Size of the ODR Frame : %d bytes\n", sizeof( struct odr_frame ) );	
+	
 
 
 	populated_odr_frame->control_msg_type = htonl(0);		
@@ -397,7 +398,7 @@ struct odr_frame * createRREQ( char * source_canonical_ip_address,
 	populated_odr_frame->RREP_sent_flag = htonl( RREP_sent_flag );
 	populated_odr_frame->route_rediscovery_flag = htonl( route_rediscovery_flag );
 
-	return odr_frame;
+	return populated_odr_frame;
 }
 
 
@@ -559,10 +560,10 @@ int main(int argc, char const *argv[])
 	int	 destination_port_number;
 	char*	 message_to_be_sent;
 	int	 route_rediscovery_flag;
-	struct req_msgs RREQ,RREP;
+	struct odr_frame RREQ,RREP;
 	struct routing_entry existing_entry;
-	struct req_msgs req_type;
-	struct req_msgs recvd_packet;
+	struct odr_frame req_type;
+	struct odr_frame recvd_packet;
 	int maxfdp1;
 	fd_set rset;
 	void* buffer = (void*)malloc(ETH_FRAME_LEN); /*Buffer for ethernet frame*/
