@@ -959,7 +959,7 @@ int main(int argc, char const *argv[])
 	else
 	{
 		staleness_param = atoi( argv[1] );
-		printf( "Staleness parameter is : %ld\n", staleness_param );
+		printf( "\nStaleness parameter is : %ld seconds.\n", staleness_param );
 		
 
 	}
@@ -1212,7 +1212,7 @@ struct routing_entry * check_if_route_exists( char * destination_canonical_ip_pr
 			gettimeofday(&curr_time_ms, NULL);
 		  	msec = timevaldiff( &(node->made_or_last_reconfirmed_or_updated_timestamp), &curr_time_ms );
 				
-			if(msec >= staleness_param )
+			if(msec >= staleness_param*1000 )
 			{
 				printf("Time diff : %ld\n", msec);
 				routing_table_delete_entry( destination_canonical_ip_presentation_format );
