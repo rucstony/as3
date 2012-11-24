@@ -382,6 +382,25 @@ void floodRREQ( int sockfd, int recieved_interface_index, char * source_canonica
 	return;
 }
 
+/* 
+	#Flood's an RREQ on all interfaces  
+ 	
+ 	recieved_interface_index = -1 if source node.
+ */
+void sendRREP( int sockfd, struct odr_frame * recieved_odr_frame )
+{
+	struct hwa_info	*hwa, *hwahead;
+	struct routing_entry * re; 
+	
+	recieved_odr_frame->control_msg_type = 2;
+	
+	re =  routing_table_lookup( recieved_odr_frame->source_canonical_ip_address );
+
+	sendODRframe(sockfd, recieved_odr_frame , re->next_hop_node_ethernet_address, re->outgoing_interface_index);
+
+	return;
+}
+
 
 /*
 	CREATE RREQ
