@@ -34,6 +34,37 @@ struct port_sunpath_mapping_entry
 
 }*psm_head,*psm_tmp;
 
+struct rreq_list
+{
+	int broadcast_id;
+	char source_canonical_ip_address[INET_ADDRSTRLEN];
+	struct rreq_list * next;
+}*rl_head,*rl_tmp;
+
+/* ODR FRAME ####### */
+struct odr_frame
+{
+	uint32_t control_msg_type; /* RREQ / RREP/ application payload */
+
+	char source_canonical_ip_address[INET_ADDRSTRLEN];
+	//source_sequence_#
+	uint32_t broadcast_id; //incremented every time the source issues new RREQ
+	char destination_canonical_ip_address[INET_ADDRSTRLEN];
+	//dest_sequence_#
+	uint32_t number_of_hops_to_destination;
+
+	uint32_t RREP_sent_flag; /* Only for RREQ's */
+	uint32_t route_rediscovery_flag; /* RREQs & RREPs */
+
+	/* Application payload specific information. */
+	uint32_t source_application_port_number;
+	uint32_t destination_application_port_number;
+	uint32_t number_of_bytes_in_application_message;	
+
+	char application_data_payload[APP_DATA_PAYLOAD_LEN];
+};
+
+
 void insert_to_port_sunpath_mapping( char * sunpath, int port )
 {
     struct port_sunpath_mapping_entry *node = (struct port_sunpath_mapping_entry *)malloc( sizeof(struct port_sunpath_mapping_entry) );
@@ -219,31 +250,7 @@ void print_mapping()
 }
 
 
-
 /* ETHERNET LEVEL FUNCTIONS - creating ethernet headers and sending messages. */
-/* ODR FRAME ####### */
-
-struct odr_frame
-{
-	uint32_t control_msg_type; /* RREQ / RREP/ application payload */
-
-	char source_canonical_ip_address[INET_ADDRSTRLEN];
-	//source_sequence_#
-	uint32_t broadcast_id; //incremented every time the source issues new RREQ
-	char destination_canonical_ip_address[INET_ADDRSTRLEN];
-	//dest_sequence_#
-	uint32_t number_of_hops_to_destination;
-
-	uint32_t RREP_sent_flag; /* Only for RREQ's */
-	uint32_t route_rediscovery_flag; /* RREQs & RREPs */
-
-	/* Application payload specific information. */
-	uint32_t source_application_port_number;
-	uint32_t destination_application_port_number;
-	uint32_t number_of_bytes_in_application_message;	
-
-	char application_data_payload[APP_DATA_PAYLOAD_LEN];
-};
 
 void update_routing_table( char* destination_canonical_ip_address_presentation_format,	char* next_hop_node_ethernet_address,
 						   char* outgoing_interface_index, int number_of_hops_to_destination )
@@ -854,34 +861,6 @@ struct odr_frame * processRecievedPacket(char * str_from_sock)
 	return recieved_odr_frame;
 
 }
-struct odr_frame
-{
-	uint32_t control_msg_type; /* RREQ / RREP/ application payload */
-
-	char source_canonical_ip_address[INET_ADDRSTRLEN];
-	//source_sequence_#
-	uint32_t broadcast_id; //incremented every time the source issues new RREQ
-	char destination_canonical_ip_address[INET_ADDRSTRLEN];
-	//dest_sequence_#
-	uint32_t number_of_hops_to_destination;
-
-	uint32_t RREP_sent_flag; /* Only for RREQ's */
-	uint32_t route_rediscovery_flag; /* RREQs & RREPs */
-
-	/* Application payload specific information. */
-	uint32_t source_application_port_number;
-	uint32_t destination_application_port_number;
-	uint32_t number_of_bytes_in_application_message;	
-
-	char application_data_payload[APP_DATA_PAYLOAD_LEN];
-};
-
-struct rreq_list
-{
-	int broadcast_id;
-	char source_canonical_ip_address[INET_ADDRSTRLEN];
-	struct rreq_list * next;
-}*rl_head,*rl_tmp;
 
 void insert_to_rreq_list( int broadcast_id ,char* source_canonical_ip_address )
 {
