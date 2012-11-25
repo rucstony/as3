@@ -72,12 +72,12 @@ struct msg_store
 {
 	int broadcast_id;
 	int source_application_port_number;
-//	int destination_application_port_number; 
+	int destination_application_port_number; 
 	char message[100];
 	struct msg_store * next;
 }*ms_head,*ms_tmp;
 
-void insert_to_msg_store( int broadcast_id ,int source_application_port_number, char * message )
+void insert_to_msg_store( int broadcast_id ,int source_application_port_number, int destination_application_port_number , char * message )
 {
 
     struct msg_store *node = (struct msg_store *)malloc( sizeof(struct msg_store) );
@@ -85,6 +85,7 @@ void insert_to_msg_store( int broadcast_id ,int source_application_port_number, 
     strcpy( node->message, message );
     node->broadcast_id =  broadcast_id ;
   	node->source_application_port_number = source_application_port_number;
+  	node->destination_application_port_number = destination_application_port_number;
 
     if( ms_head == NULL )
     {
@@ -551,7 +552,7 @@ void recvAppPayloadMessage( int sockfd, struct odr_frame * recieved_odr_frame )
 
 	getOwnCanonicalIPAddress(own_canonical_ip_address);
 	// (if at destination)Stuff the data_payload into message array and send to x based on port mapping data. 
-	if( strcmp(recieved_odr_frame->destination_canonical_ip_address,own_canonical_ip_address ) )
+	if( strcmp(recieved_odr_frame->destination_canonical_ip_address,own_canonical_ip_address )==0 )
 	{
 		strcpy(application_data_payload,recieved_odr_frame->application_data_payload);
 		application_port_number = ntohl(recieved_odr_frame->destination_application_port_number);	 
@@ -1158,13 +1159,30 @@ void processRREQPacket( int packet_socket, struct odr_frame * recvd_packet,
 	return;
 }
 
+void sendAppPayload( struct routing_entry * re, char * source_canonical_ip_address, char * destination_canonical_ip_address
+					 int source_application_port_number, int destination_application_port_number, char * application_data_payload,
+					 int number_of_bytes_in_application_message )
+{
+	struct odr_frame * populated_odr_frame;
+	char * source_mac;
+	populated_odr_frame = createApplicationPayloadMessage( source_canonical_ip_address, -1,
+													  	   destination_canonical_ip_address,   
+								 						   re->number_of_hops_to_destination, source_application_port_number,
+							   							   destination_application_port_number, application_data_payload ,
+							   							   number_of_bytes_in_application_message );
+	source_mac = retrieveMacFromInterfaceIndex( re->outgoing_interface_index );
+	sendODRframe( packet_socket ,populated_odr_frame, source_mac, 
+				  re->next_hop_node_ethernet_address, re->outgoing_interface_index );
+	return;
+}
 
 int main(int argc, char const *argv[])
 {
 	struct hwa_info	*hwa, *hwahead;
 	struct sockaddr	*sa;
 	char   *ptr;
-	int    i, j, prflag,route_exists,broadcast_id,n,s,len,clilen,pathlen,prolen;
+	int    i, j, prflag,broadcast_id,n,s,len,clilen,pathlen,prolen;
+	struct odr_frame * route_exists;
 	int packet_socket;
 	int nready , odrlen;
     struct sockaddr_un procaddr;
@@ -1186,6 +1204,8 @@ int main(int argc, char const *argv[])
 	struct odr_frame * recvd_packet;
 	struct port_sunpath_mapping_entry *node;
 	struct msg_store * msg_store_entry;
+	char own_canonical_ip_address[INET_ADDRSTRLEN];
+
 	int maxfdp1;
 	fd_set rset;
 	void* buffer = (void*)malloc(ETH_FRAME_LEN); /*Buffer for ethernet frame*/
@@ -1323,14 +1343,18 @@ int main(int argc, char const *argv[])
 				}
 				else
 				{	
-					route_exists=0;
+					route_exists=NULL;
 
 				}
 
-				if(route_exists)
+				if(route_exists != NULL)
 				{
+					node = port_sunpath_lookup( procaddr.sun_path, 0 );	
 					printf("Route found! \n SEND MESG\n");
-					//sendApp	
+					getOwnCanonicalIPAddress( own_canonical_ip_address );
+					sendAppPayload( route_exists, own_canonical_ip_address, destination_canonical_ip_presentation_format,
+			  					    node->port, destination_port_number, message_to_be_sent,
+					 				sizeof(message_to_be_sent) );
 
 				}else
 				{
@@ -1345,7 +1369,7 @@ int main(int argc, char const *argv[])
 					broadcast_id++;
 					printf("New Broadcast id is : \n", broadcast_id);		
 					//recieved_interface_index
-					insert_to_msg_store(broadcast_id, node->port ,message_to_be_sent);
+					insert_to_msg_store(broadcast_id, node->port , destination_port_number ,message_to_be_sent);
 
 					floodRREQ( packet_socket, -1, source_addr,
 								broadcast_id, destination_canonical_ip_presentation_format,   
@@ -1436,8 +1460,9 @@ int main(int argc, char const *argv[])
 							recvd_packet->RREP_sent_flag = 0;
 							recvd_packet->route_rediscovery_flag=0;
 							recvd_packet->source_application_port_number= msg_store_entry->source_application_port_number;
-							recvd_packet->destination_application_port_number= SERVER_PORT;
+							recvd_packet->destination_application_port_number= msg_store_entry->destination_application_port_number;
 							strcpy(recvd_packet->application_data_payload,msg_store_entry->message);
+							recvd_packet->number_of_bytes_in_application_message = sizeof(msg_store_entry->message);
 							recvd_packet = preparePacketForResending( recvd_packet );
 							
 							source_mac = retrieveMacFromInterfaceIndex( re->outgoing_interface_index );
