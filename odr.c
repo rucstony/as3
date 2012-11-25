@@ -330,6 +330,7 @@ void floodRREQ( int sockfd, int recieved_interface_index, char * source_canonica
 				int route_rediscovery_flag )
 {
 	struct hwa_info	*hwa, *hwahead;
+	char * ifname_split;
 	unsigned char flood_mac[6] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
 
 	struct odr_frame * populated_odr_frame;
@@ -341,7 +342,9 @@ void floodRREQ( int sockfd, int recieved_interface_index, char * source_canonica
 	/* Flood with broadcast address on all interfaces except eth0 and lo and recieved interface */
 	for (hwahead = hwa = Get_hw_addrs(); hwa != NULL; hwa = hwa->hwa_next) 
 	{
-		if( strcmp(hwa->if_name, "eth0")!=0
+		ifname_split = strtok(hwa->if_name, ":"); //get pointer to first token found and store in 0
+	
+		if( strcmp(ifname_split, "eth0")!=0
 			&& strcmp(hwa->if_name,"lo")!=0
 			&& hwa->if_index!=recieved_interface_index )
 		{	
