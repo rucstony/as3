@@ -375,11 +375,10 @@ void update_routing_table( char* destination_canonical_ip_address_presentation_f
 
 /* DO THIS BEFORE GENERATING AN RREP WHEN APPROPRIATE */
 int enterReverseRoute( char* destination_canonical_ip_address_presentation_format,	char* rreq_ethernet_header_next_hop_node_ethernet_address,
-						char* outgoing_interface_index, int number_of_hops_to_destination )
+						char* outgoing_interface_index, int number_of_hops_to_destination, int flag )
 {
 	struct routing_entry * node;
 	printf("enterReverseRoute 1\n");
-	node = check_if_route_exists( destination_canonical_ip_address_presentation_format );
 	printf("enterReverseRoute 2\n");
 	if( node == NULL )
 	{
@@ -400,7 +399,7 @@ int enterReverseRoute( char* destination_canonical_ip_address_presentation_forma
 			printf("enterReverseRoute 6\n");
 			return 1;			
 		}	
-		else if(  ( strcmp(node->next_hop_node_ethernet_address, rreq_ethernet_header_next_hop_node_ethernet_address)!=0 ) )
+		else if(  ( strcmp(node->next_hop_node_ethernet_address, rreq_ethernet_header_next_hop_node_ethernet_address)!=0 ) && (flag == 0) )
 		{
 			printf("enterReverseRoute 7\n");
 			update_routing_table( destination_canonical_ip_address_presentation_format, rreq_ethernet_header_next_hop_node_ethernet_address,
@@ -1090,7 +1089,7 @@ void processRREQPacket( int packet_socket, struct odr_frame * recvd_packet,
 
 	notifyOthers = enterReverseRoute( recvd_packet->source_canonical_ip_address,
 									  next_hop_node_ethernet_address,
-									  /*interface index*/odraddr.sll_ifindex,recvd_packet->number_of_hops_to_destination );
+									  /*interface index*/odraddr.sll_ifindex,recvd_packet->number_of_hops_to_destination, 0 );
 	
 	rl = rreq_list_lookup( recvd_packet->source_canonical_ip_address );									  
 
@@ -1438,7 +1437,7 @@ int main(int argc, char const *argv[])
 					/* Forward routes. */
 					enterReverseRoute( recvd_packet->destination_canonical_ip_address,
 										next_hop_node_ethernet_address,
-										/*interface index*/odraddr.sll_ifindex,recvd_packet->number_of_hops_to_destination );
+										/*interface index*/odraddr.sll_ifindex,recvd_packet->number_of_hops_to_destination, 1 );
 
 
 					if( strcmp(  recvd_packet->source_canonical_ip_address, source_addr)==0 )
@@ -1482,7 +1481,19 @@ int main(int argc, char const *argv[])
 	            {
 	            	//recvd_packet	
 	            	printf("application_data_payload received\n ");
-	            	
+	            	re = check_if_route_exists( recvd_packet->destination_canonical_ip_address );
+	            	if( re == NULL )
+	            	{
+	            		printf("Route expired ?\n");
+	            		//FloodRREQ here.
+	            	}		
+	            	else
+	            	{	
+						enterReverseRoute( recvd_packet->source_canonical_ip_address,	
+										   re->next_hop_node_ethernet_address,
+										   re->outgoing_interface_index, re->number_of_hops_to_destination, 1 );
+		            	recvAppPayloadMessage( packet_socket, recvd_packet );
+		            }	
 	            }
 		     }
 		    }
