@@ -1159,7 +1159,7 @@ void processRREQPacket( int packet_socket, struct odr_frame * recvd_packet,
 	return;
 }
 
-void sendAppPayload( struct routing_entry * re, char * source_canonical_ip_address, char * destination_canonical_ip_address
+void sendAppPayload( int packet_socket, struct routing_entry * re, char * source_canonical_ip_address, char * destination_canonical_ip_address,
 					 int source_application_port_number, int destination_application_port_number, char * application_data_payload,
 					 int number_of_bytes_in_application_message )
 {
@@ -1352,7 +1352,7 @@ int main(int argc, char const *argv[])
 					node = port_sunpath_lookup( procaddr.sun_path, 0 );	
 					printf("Route found! \n SEND MESG\n");
 					getOwnCanonicalIPAddress( own_canonical_ip_address );
-					sendAppPayload( route_exists, own_canonical_ip_address, destination_canonical_ip_presentation_format,
+					sendAppPayload(  packet_socket, route_exists, own_canonical_ip_address, destination_canonical_ip_presentation_format,
 			  					    node->port, destination_port_number, message_to_be_sent,
 					 				sizeof(message_to_be_sent) );
 
