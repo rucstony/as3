@@ -9,7 +9,7 @@ static void message_receive_timeout(int signo);
 //void msg_recv( int sockfd_for_read,char *message_received,  char *source_canonical_ip_presentation_format, char  *source_port_number);
  char server_vm[HOSTNAME_LEN], client_vm[HOSTNAME_LEN];
  int                 sockfd;
- char message_to_be_sent[100] = "Request TIME from server";
+ char message_to_be_sent[100] = "Request TIME from server\n";
  char template[100];
  char destination_canonical_ip_presentation_format[100];
 char  route_rediscovery_flag[]="0";
@@ -27,15 +27,17 @@ int main(int argc, char **argv)
     char source_port_number[10];
     int fd;
 
-    char message_to_be_sent[MAXLINE];
     char str;
     char  buf[100];
     time_t ticks;
-    
+    int fp;
   //  l=strlen(template);
     //printf("Previous length : %d\n", l );
     strcpy(template,"/tmp/fileXXXXXX");
-    mkstemp(template);
+    fp=mkstemp(template);
+    printf("file pointer from mkstemp :%d\n", fp);
+    close(fp);
+    unlink(template);
     //l=strlen(template);
     //printf("New length : %d\n", l );
 //template[l]=0;
@@ -98,7 +100,7 @@ int main(int argc, char **argv)
         strcpy(route_rediscovery_flag,"0");
         alarm(5);
         printf("after alarm set\n");
-        msg_send( sockfd,  destination_canonical_ip_presentation_format, template,  message_to_be_sent, route_rediscovery_flag );
+        msg_send( sockfd,  destination_canonical_ip_presentation_format, "77356",  message_to_be_sent, route_rediscovery_flag );
         
         printf("before recv\n");
         if(sigsetjmp(jmpbuf,1)!=0)
@@ -126,7 +128,7 @@ int main(int argc, char **argv)
             
     }
 
-    
+    unlink(template);
     exit(0);
 }
 static void message_receive_timeout(int signo)
@@ -135,7 +137,7 @@ static void message_receive_timeout(int signo)
       printf("Client at node   %s  : timeout on response from   %s\n", client_vm, server_vm);
       printf("Retransmitting message with Forced Route Discovery\n");
       strcpy(route_rediscovery_flag,"1");
-      msg_send( sockfd,  destination_canonical_ip_presentation_format, template,  message_to_be_sent, route_rediscovery_flag );
+      msg_send( sockfd,  destination_canonical_ip_presentation_format, "77356",  message_to_be_sent, route_rediscovery_flag );
        siglongjmp(jmpbuf,1);
         return;
 }

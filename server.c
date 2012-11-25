@@ -56,19 +56,22 @@ int main()
     printf("%d gethostname done:  %s server_vm\n",gethostname( server_vm, sizeof( server_vm) ), server_vm);    
 	while(1)
 	{
-		printf("in loop\n");
-		ticks=time(NULL);
-		memset(buf,0,sizeof(buf));
- 
-		snprintf(buf,sizeof(buf),"%.24s\r\n",ctime(&ticks));
-             printf("Time: %s\n",buf );
+		printf("Waiting for request...\n");
+
         msg_recv( sockfd, message_received, source_canonical_ip_presentation_format, source_port_number);
 
         printf("in loop: msg_recv done\n");
 		retrieveHostName( source_canonical_ip_presentation_format, client_vm );
-		printf("Server at node %s responding to request from  %s\n", server_vm, client_vm );
 		
-        msg_send(  sockfd,  source_canonical_ip_presentation_format, "72217",  buf, route_rediscovery_flag );
+		ticks=time(NULL);
+		memset(buf,0,sizeof(buf));
+ 
+		snprintf(buf,sizeof(buf),"%.24s\r\n",ctime(&ticks));
+		printf("*******************************************\n");
+		printf("Server at node %s responding to request from  %s\n", server_vm, client_vm );
+        printf("Time: %s\n",buf );
+        printf("*******************************************\n");
+        msg_send(  sockfd,  source_canonical_ip_presentation_format, source_port_number,  buf, route_rediscovery_flag );
 
 	}
 

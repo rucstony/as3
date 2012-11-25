@@ -989,7 +989,7 @@ void processRREQPacket( int packet_socket, struct odr_frame * recvd_packet,
 	{
 		printf("7\n");
 		//odr is at the destination node 
-		if(!recvd_packet->RREP_sent_flag)
+		if(!recvd_packet->RREP_sent_flag && notifyOthers)
 		{
 			recvd_packet = preparePacketForResending( recvd_packet );
 			sendRREP( packet_socket, recvd_packet);
@@ -1046,7 +1046,7 @@ int main(int argc, char const *argv[])
 	int    i, j, prflag,route_exists,broadcast_id,n,s,len,clilen,pathlen,prolen;
 	int packet_socket;
 	int nready , odrlen;
-    struct sockaddr procaddr;
+    struct sockaddr_un procaddr;
 	int					sockfd;
 	struct sockaddr_un	cliaddr, servaddr;
 	struct sockaddr_ll  odraddr;  
@@ -1156,10 +1156,11 @@ int main(int argc, char const *argv[])
         if (FD_ISSET(sockfd, &rset)) 
         {
         	printf("Receiving from client/server..%d bytes.\n", n);
+        	
         	memset( data_stream, 0, MAXLINE ); 
         	prolen=sizeof(procaddr);
         	n=recvfrom(sockfd,data_stream,MAXLINE,0,&procaddr,&prolen);
-            
+            printf("received from sun_path: %s\n", procaddr.sun_path);
             
            	if( n == -1 )
            		perror("recvfrom");
@@ -1219,6 +1220,7 @@ int main(int argc, char const *argv[])
 								0, 0,
 								route_rediscovery_flag );
 					printf("RREQ broadcast sent..\n");
+					sleep(2);
 				}
 				
 			}//else
@@ -1233,8 +1235,10 @@ int main(int argc, char const *argv[])
         	odrlen=sizeof(odraddr);
 	        if((n=recvfrom(packet_socket,buffer, ETH_FRAME_LEN, 0, &odraddr, &odrlen)>0))
 	        {
+
 				ihw = IF_HADDR;
-	        		
+	        	khw=0;
+
 	        		printf("Received packet from hw address:\n");
 				do 
 				{	
@@ -1245,9 +1249,6 @@ int main(int argc, char const *argv[])
 				} while (--ihw > 0);
 				printf("\n at interface %d...\n",odraddr.sll_ifindex);
 
-
-
-				printf("Received packet from ODR at interface %d...\n",odraddr.sll_ifindex);
 	        	
 
 	        	if (n == -1)
@@ -1257,7 +1258,7 @@ int main(int argc, char const *argv[])
 	        	}
 	        	else
 	        	{ 
-	        		printf("Recieved Packet Size : %d\n",sizeof(buffer) ); 
+	        		printf("Recieved Packet Size : %d\n",sizeof(*buffer) ); 
 	        	}
 
 	            recvd_packet = (struct odr_frame *)processRecievedPacket(buffer);
@@ -1269,10 +1270,13 @@ int main(int argc, char const *argv[])
 	 
 	            if(recvd_packet->control_msg_type==0) //RREQ
 	            {
+	            	printf("RREQ received..\n");
 	     			processRREQPacket(packet_socket,recvd_packet,next_hop_node_ethernet_address, odraddr, source_addr);
+		     		printf("RREQ processing over..\n");
 		     	}
 	         	else if(recvd_packet->control_msg_type==1) //RREP
 	            {
+	            	printf("RREP received..\n");
 	          //  	recvd_packet->route_rediscovery_flag=1;
 					
 					/* Forward routes. */
@@ -1292,9 +1296,10 @@ int main(int argc, char const *argv[])
 		           		recvd_packet = preparePacketForResending( recvd_packet );
 		           		sendRREP( packet_socket, recvd_packet);
 	            	}
+	            	printf("RREP processing over..\n");
 	            }else//message
 	            {
-
+	            	printf("application_data_payload received\n ");
 	            }
 		     }
 		    }

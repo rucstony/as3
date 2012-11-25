@@ -48,7 +48,7 @@ int msg_recv( int sockfd_for_read,char *message_received,
 
   //  Listen(sockfd_for_read, LISTENQ);
  //   n = recvfrom( sockfd_for_read,str_from_sock,MAXLINE,0,&odraddr,sizeof(odraddr) );
-    printf("%d\n", n);
+ //   printf("%d\n", n);
     FD_ZERO(&rset);
     //maxfdp1 = max(sockfd_for_read, udpfd) + 1;
     for ( ; ; ) 
@@ -69,7 +69,7 @@ int msg_recv( int sockfd_for_read,char *message_received,
             //printf("in FD_ISSET\n");
             if((n=recvfrom(sockfd_for_read,str_from_sock,MAXLINE,0,&odraddr,sizeof(odraddr)))>0)
             {
-                printf("fgets done..\n");
+               // printf("fgets done..\n");
                 printf("%s\n", str_from_sock);
                 msg_fields[0] = strtok(str_from_sock, "|"); //get pointer to first token found and store in 0
                 while(msg_fields[i]!= NULL) 
