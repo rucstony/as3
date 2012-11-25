@@ -1342,6 +1342,8 @@ int main(int argc, char const *argv[])
 					broadcast_id++;
 					printf("New Broadcast id is : \n", broadcast_id);		
 					//recieved_interface_index
+					insert_to_msg_store(broadcast_id, node->port ,message_to_be_sent);
+
 					floodRREQ( packet_socket, -1, source_addr,
 								broadcast_id, destination_canonical_ip_presentation_format,   
 								0, 0,
