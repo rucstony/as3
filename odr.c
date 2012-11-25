@@ -30,6 +30,8 @@ struct port_sunpath_mapping_entry
 {
 	int  port;
 	char sunpath[100];
+	char message[100];
+	int destination_port_number;
 	struct port_sunpath_mapping_entry * next;	
 
 }*psm_head,*psm_tmp;
@@ -63,6 +65,102 @@ struct odr_frame
 
 	char application_data_payload[APP_DATA_PAYLOAD_LEN];
 };
+
+
+struct msg_store
+{
+	int broadcast_id;
+	int source_application_port_number;
+//	int destination_application_port_number; 
+	char message[100];
+}*ms_head,*ms_tmp;
+
+void insert_to_msg_store( int broadcast_id ,int source_application_port_number, char * message )
+{
+
+    struct msg_store *node = (struct msg_store *)malloc( sizeof(struct msg_store) );
+
+    strcpy( node->message, message );
+    node->broadcast_id =  broadcast_id ;
+  	node->source_application_port_number = source_application_port_number;
+
+    if( ms_head == NULL )
+    {
+      ms_head = node;
+      ms_head->next = NULL;			
+    } 
+    else if( ms_head->next == NULL )
+    {
+      ms_head->next = node;
+      node->next = NULL;			
+    } 
+    else
+    {
+      ms_tmp = ms_head->next;       
+      ms_head->next = node;
+      node->next = ms_tmp;            
+    } 
+ 	return;
+ }
+
+struct msg_store * msg_store_lookup( int broadcast_id )
+{
+	struct msg_store *node; 	
+
+	node = ms_head;
+	while( node != NULL )
+	{
+		if( node->broadcast_id == broadcast_id )
+		{
+			return node;
+		}	
+		node = node->next;
+	}
+	return NULL;	
+}
+
+int msg_store_delete_entry( int broadcast_id )
+{
+	struct msg_store *node; 	
+	struct msg_store *prev; 	
+
+	node = ms_head; 
+	while( node != NULL )	
+	{
+		if( node->broadcast_id == broadcast_id )
+		{
+			prev->next = node->next;
+			node->next = NULL;
+			free(node);	
+			return 1;
+		}	
+		prev = node;
+		node = node->next;
+	}	
+	return -1;
+}
+
+void print_msg_store()
+{
+	struct msg_store *node; 	
+	printf("\n***************************\n");
+	printf("Printing Msg Store For Node\n");
+	printf("\n***************************\n");
+
+	node = ms_head;
+	while( node != NULL )
+	{
+
+		printf("-->Message : %s,Broadcast ID : %d, Source Port Number : %d", node->message,node->broadcast_id, 
+																			 node->source_application_port_number );
+
+		node = node->next;
+	}
+	printf("\n***************************\n");
+
+	printf("\n");
+	return;	
+}
 
 
 void insert_to_port_sunpath_mapping( char * sunpath, int port )
@@ -1329,7 +1427,6 @@ int main(int argc, char const *argv[])
 						else
 						{
 
-							//createApplicationPayloadMessage()
 							recvd_packet->control_msg_type = 2;
 							recvd_packet->RREP_sent_flag = 0;
 							recvd_packet->route_rediscovery_flag=0;
@@ -1341,7 +1438,7 @@ int main(int argc, char const *argv[])
 							source_mac = retrieveMacFromInterfaceIndex( re->outgoing_interface_index );
 
 							sendODRframe( packet_socket , recvd_packet , source_mac, re->next_hop_node_ethernet_address , re->outgoing_interface_index );
-
+	
 						}
 					}		            
 		           	else
@@ -1355,6 +1452,7 @@ int main(int argc, char const *argv[])
 	            {
 	            	//recvd_packet	
 	            	printf("application_data_payload received\n ");
+	            	
 	            }
 		     }
 		    }
