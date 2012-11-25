@@ -1158,6 +1158,7 @@ void processRREQPacket( int packet_socket, struct odr_frame * recvd_packet,
 	return;
 }
 
+
 int main(int argc, char const *argv[])
 {
 	struct hwa_info	*hwa, *hwahead;
@@ -1442,7 +1443,7 @@ int main(int argc, char const *argv[])
 							source_mac = retrieveMacFromInterfaceIndex( re->outgoing_interface_index );
 
 							sendODRframe( packet_socket , recvd_packet , source_mac, re->next_hop_node_ethernet_address , re->outgoing_interface_index );
-	
+							msg_store_delete_entry( recvd_packet->broadcast_id );
 						}
 					}		            
 		           	else
