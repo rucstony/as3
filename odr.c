@@ -398,8 +398,6 @@ void sendRREP( int sockfd, struct odr_frame * recieved_odr_frame )
 	struct routing_entry * re; 
 	unsigned char source_mac[6];
 
-	recieved_odr_frame->control_msg_type = 1;
-	
 	re =  routing_table_lookup( recieved_odr_frame->source_canonical_ip_address );
 
 	memcpy(source_mac,retrieveMacFromInterfaceIndex( re->outgoing_interface_index ),6);
@@ -995,6 +993,7 @@ void processRREQPacket( int packet_socket, struct odr_frame * recvd_packet,
 		//odr is at the destination node 
 		if(!recvd_packet->RREP_sent_flag && notifyOthers)
 		{
+			recvd_packet->control_msg_type = 1;
 			recvd_packet = preparePacketForResending( recvd_packet );
 			sendRREP( packet_socket, recvd_packet);
 		}
@@ -1018,6 +1017,7 @@ void processRREQPacket( int packet_socket, struct odr_frame * recvd_packet,
 			printf("Route found! \n SEND RREP\n");
 							 
 			if(!recvd_packet->RREP_sent_flag){
+				recvd_packet->control_msg_type = 1;
 				recvd_packet = preparePacketForResending( recvd_packet );
 				sendRREP( packet_socket, recvd_packet);
 			}
@@ -1305,6 +1305,7 @@ int main(int argc, char const *argv[])
 					}		            
 		           	else
 		           	{
+          				recvd_packet->control_msg_type = 1;
 		           		recvd_packet = preparePacketForResending( recvd_packet );
 		           		sendRREP( packet_socket, recvd_packet);
 	            	}
