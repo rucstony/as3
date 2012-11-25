@@ -82,11 +82,11 @@ int msg_recv( int sockfd_for_read,char *message_received,
                     printf("%s\n", msg_fields[j]); //print out all of the tokens
                 }
 
-               message_received=msg_fields[1];
-               source_canonical_ip_presentation_format=msg_fields[2];
-               source_port_number=atoi(msg_fields[3]);
+               message_received=msg_fields[0];
+               source_canonical_ip_presentation_format=msg_fields[1];
+               source_port_number=atoi(msg_fields[2]);
                
-               return atoi(msg_fields[0]); //port to read from
+               return atoi(sockfd_for_read); //port to read from
            }
            //printf("out FD_ISSET\n");
           

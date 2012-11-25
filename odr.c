@@ -166,7 +166,7 @@ void print_msg_store()
 }
 
 
-void insert_to_port_sunpath_mapping( char * sunpath, int port )
+struct port_sunpath_mapping_entry * insert_to_port_sunpath_mapping( char * sunpath, int port )
 {
     struct port_sunpath_mapping_entry *node = (struct port_sunpath_mapping_entry *)malloc( sizeof(struct port_sunpath_mapping_entry) );
 
@@ -189,7 +189,7 @@ void insert_to_port_sunpath_mapping( char * sunpath, int port )
       psm_head->next = node;
       node->next = psm_tmp;            
     } 
- 	return;
+ 	return node;
  }
 
 struct port_sunpath_mapping_entry * port_sunpath_lookup( char * sunpath, int application_port_number )
@@ -523,20 +523,28 @@ void transmitAppPayloadMessage( int s, struct routing_entry * re ,struct odr_fra
 	return;
 }
 
-void sendToAppLayer( int sockfd, char * application_data_payload ,char * sunpath )
+void sendToAppLayer( int sockfd, char * application_data_payload ,char * sunpath ,char *source_canonical_ip_address, int source_port_number)
 {
 	struct sockaddr_un  odraddr;  
     char output_to_sock[MAXLINE];
+    char strPort[15] ;
+    sprintf(strPort,"%s",source_port_number);
    	
     strcpy(output_to_sock, application_data_payload);  
 
+     sprintf(output_to_sock,"%s|%s|%s\n", application_data_payload, 
+                                    
+                                          source_canonical_ip_address,
+                                          source_port_number);
+    
     bzero(&odraddr, sizeof(odraddr)); /* fill in server's address */
     odraddr.sun_family = AF_LOCAL;
     strcpy(odraddr.sun_path, sunpath);
 
-	sendto(sockfd,output_to_sock,strlen(output_to_sock),0,&odraddr,sizeof(odraddr));
-    printf("sendto : %s\n", hstrerror(h_errno));
+	printf("Sending data to application: %s\n", output_to_sock);
+    sendto(sockfd,output_to_sock,strlen(output_to_sock),0,&odraddr,sizeof(odraddr));
 
+    printf("Sent data to application: %s\n", output_to_sock);
 	return;
 }
 
@@ -559,7 +567,8 @@ void recvAppPayloadMessage( int sockfd, struct odr_frame * recieved_odr_frame )
 		printf("sunpath, port entry found : %s,  %d\n", psme->sunpath, application_port_number);
 		strcpy(sunpath,psme->sunpath);
 		
-		sendToAppLayer( sockfd, application_data_payload, sunpath  );
+       
+		sendToAppLayer( sockfd, application_data_payload, sunpath ,recieved_odr_frame->source_canonical_ip_address, application_port_number );
 	}	
 	else
 	{
@@ -1228,6 +1237,8 @@ int main(int argc, char const *argv[])
 	getOwnCanonicalIPAddress(source_addr);
 	printf("Source address: %s\n", source_addr);
 
+    insert_to_port_sunpath_mapping( procaddr.sun_path, client_port );
+
 	for (hwahead = hwa = Get_hw_addrs(); hwa != NULL; hwa = hwa->hwa_next) 
 	{
 		
@@ -1308,7 +1319,7 @@ int main(int argc, char const *argv[])
 			if (node ==NULL)
 			{
 				client_port++;
-				insert_to_port_sunpath_mapping( procaddr.sun_path, client_port );
+				node = insert_to_port_sunpath_mapping( procaddr.sun_path, client_port );
 
 			}
 			print_mapping();
