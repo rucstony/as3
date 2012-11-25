@@ -13,7 +13,7 @@
 #define UNIX_SERV_PATH "unixservpath"
 #define APP_DATA_PAYLOAD_LEN 1436
 
-
+int client_port=100;
 struct routing_entry 
 {
 
@@ -240,7 +240,7 @@ void print_mapping()
 	node = psm_head;
 	while( node != NULL )
 	{
-	printf("tsete1");
+	printf("Sunpath,PORT mapping entries\n ");
 	
 		printf("-->%s,%d", node->sunpath,node->port );
 		node = node->next;
@@ -452,6 +452,7 @@ void recvAppPayloadMessage( int sockfd, struct odr_frame * recieved_odr_frame )
 		strcpy(application_data_payload,recieved_odr_frame->application_data_payload);
 		application_port_number = ntohl(recieved_odr_frame->destination_application_port_number);	 
 		psme = port_sunpath_lookup( NULL, application_port_number );
+		printf("sunpath, port entry found : %s,  %d\n", psme->sunpath, application_port_number);
 		strcpy(sunpath,psme->sunpath);
 		
 		sendToAppLayer( sockfd, application_data_payload, sunpath  );
@@ -1065,6 +1066,7 @@ int main(int argc, char const *argv[])
 	struct routing_entry existing_entry;
 	struct odr_frame req_type;
 	struct odr_frame * recvd_packet;
+	struct port_sunpath_mapping_entry *node;
 	int maxfdp1;
 	fd_set rset;
 	void* buffer = (void*)malloc(ETH_FRAME_LEN); /*Buffer for ethernet frame*/
@@ -1164,7 +1166,14 @@ int main(int argc, char const *argv[])
         	prolen=sizeof(procaddr);
         	n=recvfrom(sockfd,data_stream,MAXLINE,0,&procaddr,&prolen);
             printf("received from sun_path: %s\n", procaddr.sun_path);
-            
+            node = port_sunpath_lookup( procaddr.sun_path, 0);
+			if (node ==NULL)
+			{
+				client_port++;
+				insert_to_port_sunpath_mapping( procaddr.sun_path, client_port );
+
+			}
+			print_mapping();
            	if( n == -1 )
            		perror("recvfrom");
            
@@ -1302,6 +1311,7 @@ int main(int argc, char const *argv[])
 	            	printf("RREP processing over..\n");
 	            }else//message
 	            {
+	            	//recvd_packet	
 	            	printf("application_data_payload received\n ");
 	            }
 		     }
