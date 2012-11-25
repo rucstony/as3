@@ -278,7 +278,7 @@ int enterReverseRoute( char* destination_canonical_ip_address_presentation_forma
 {
 	struct routing_entry * node;
 	printf("enterReverseRoute 1\n");
-	node = routing_table_lookup( destination_canonical_ip_address_presentation_format );
+	node = check_if_route_exists( destination_canonical_ip_address_presentation_format );
 	printf("enterReverseRoute 2\n");
 	if( node == NULL )
 	{
@@ -398,13 +398,19 @@ void sendRREP( int sockfd, struct odr_frame * recieved_odr_frame )
 	struct routing_entry * re; 
 	unsigned char source_mac[6];
 
-	re =  routing_table_lookup( recieved_odr_frame->source_canonical_ip_address );
+	re =  check_if_route_exists( recieved_odr_frame->source_canonical_ip_address );
+	if( re == NULL )
+	{
+		printf("Reverse route not found! Probably the staleness_param is too short..\n");
+		//floodRREQ()
+	}	
+	else
+	{	
+		memcpy(source_mac,retrieveMacFromInterfaceIndex( re->outgoing_interface_index ),6);
 
-	memcpy(source_mac,retrieveMacFromInterfaceIndex( re->outgoing_interface_index ),6);
-
-	printf("Sending an RREP back on interface %d..\n", re->outgoing_interface_index );
-	sendODRframe(sockfd, recieved_odr_frame , source_mac, re->next_hop_node_ethernet_address, re->outgoing_interface_index);
-
+		printf("Sending an RREP back on interface %d..\n", re->outgoing_interface_index );
+		sendODRframe(sockfd, recieved_odr_frame , source_mac, re->next_hop_node_ethernet_address, re->outgoing_interface_index);
+	}	
 	return;
 }
 
@@ -457,8 +463,16 @@ void recvAppPayloadMessage( int sockfd, struct odr_frame * recieved_odr_frame )
 	}	
 	else
 	{
-		re = routing_table_lookup( recieved_odr_frame->destination_canonical_ip_address );	
-		transmitAppPayloadMessage(sockfd,  re ,recieved_odr_frame );
+		re = check_if_route_exists( recieved_odr_frame->destination_canonical_ip_address );	
+		if( re == NULL )
+		{
+			printf("Cannot find Reverse route!! staleness_param too short.\n");
+			//FloodRREQ()
+		}
+		else
+		{	
+			transmitAppPayloadMessage(sockfd,  re ,recieved_odr_frame );
+		}
 	}	
 }
 
@@ -991,6 +1005,8 @@ void processRREQPacket( int packet_socket, struct odr_frame * recvd_packet,
 	{
 		printf("7\n");
 		//odr is at the destination node 
+		recvd_packet->number_of_hops_to_destination=0;
+
 		if(!recvd_packet->RREP_sent_flag && notifyOthers)
 		{
 			recvd_packet->control_msg_type = 1;
@@ -1059,11 +1075,12 @@ int main(int argc, char const *argv[])
 	char *msg_fields[MAXLINE];
 	char str_from_sock[MAXLINE], source_addr[INET_ADDRSTRLEN];
 	char*	 destination_canonical_ip_presentation_format;
+	char * source_mac;
 	int	 destination_port_number;
 	char*	 message_to_be_sent;
 	int	 route_rediscovery_flag;
 	struct odr_frame RREQ,RREP;
-	struct routing_entry existing_entry;
+	struct routing_entry existing_entry, *re;
 	struct odr_frame req_type;
 	struct odr_frame * recvd_packet;
 	struct port_sunpath_mapping_entry *node;
@@ -1300,8 +1317,32 @@ int main(int argc, char const *argv[])
 					if( strcmp(  recvd_packet->source_canonical_ip_address, source_addr)==0 )
 					{
 						/* We are at the source finally. */
+						recvd_packet->number_of_hops_to_destination=0;
+	 
 						printf("\nRETRIEVED A PATH !!\n");
+						/*  */
+						re = check_if_route_exists( recvd_packet->destination_canonical_ip_address );	
+						if( re == NULL )
+						{
+							printf("Unable to find route ! staleness_param is too short..\n");
+						}	
+						else
+						{
 
+							//createApplicationPayloadMessage()
+							recvd_packet->control_msg_type = 2;
+							recvd_packet->RREP_sent_flag = 0;
+							recvd_packet->route_rediscovery_flag=0;
+							recvd_packet->source_application_port_number=;
+							recvd_packet->destination_application_port_number=;
+							recvd_packet->application_data_payload = message;
+							recvd_packet = preparePacketForResending( recvd_packet );
+							
+							source_mac = retrieveMacFromInterfaceIndex( re->outgoing_interface_index );
+
+							sendODRframe( packet_socket , recvd_packet , source_mac, re->next_hop_node_ethernet_address , re->outgoing_interface_index );
+
+						}
 					}		            
 		           	else
 		           	{
