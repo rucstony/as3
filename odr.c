@@ -74,6 +74,7 @@ struct msg_store
 	int source_application_port_number;
 //	int destination_application_port_number; 
 	char message[100];
+	struct msg_store * next;
 }*ms_head,*ms_tmp;
 
 void insert_to_msg_store( int broadcast_id ,int source_application_port_number, char * message )
@@ -1183,6 +1184,7 @@ int main(int argc, char const *argv[])
 	struct odr_frame req_type;
 	struct odr_frame * recvd_packet;
 	struct port_sunpath_mapping_entry *node;
+	struct msg_store * msg_store_entry;
 	int maxfdp1;
 	fd_set rset;
 	void* buffer = (void*)malloc(ETH_FRAME_LEN); /*Buffer for ethernet frame*/
