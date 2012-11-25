@@ -98,7 +98,7 @@ int main(int argc, char **argv)
         retrieveDestinationCanonicalIpPresentationFormat(server_vm, destination_canonical_ip_presentation_format);      
          //   strcpy(message_to_be_sent,"trace message\n");
         strcpy(route_rediscovery_flag,"0");
-        alarm(5);
+        alarm(50);
         printf("after alarm set\n");
         msg_send( sockfd,  destination_canonical_ip_presentation_format, "77356",  message_to_be_sent, route_rediscovery_flag );
         

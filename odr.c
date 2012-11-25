@@ -14,7 +14,7 @@
 #define APP_DATA_PAYLOAD_LEN 1436
 #define SERVER_PORT 80
 
-int client_port=100;
+int client_port=101;
 struct routing_entry 
 {
 
@@ -1237,7 +1237,7 @@ int main(int argc, char const *argv[])
 	getOwnCanonicalIPAddress(source_addr);
 	printf("Source address: %s\n", source_addr);
 
-    insert_to_port_sunpath_mapping( procaddr.sun_path, client_port );
+    insert_to_port_sunpath_mapping( UNIX_SERV_PATH, SERVER_PORT );
 
 	for (hwahead = hwa = Get_hw_addrs(); hwa != NULL; hwa = hwa->hwa_next) 
 	{
