@@ -12,6 +12,7 @@
 #define UNIXDG_PATH "testpath"
 #define UNIX_SERV_PATH "unixservpath"
 #define APP_DATA_PAYLOAD_LEN 1436
+#define SERVER_PORT 80
 
 int client_port=100;
 struct routing_entry 
@@ -1326,8 +1327,7 @@ int main(int argc, char const *argv[])
 				if(route_exists)
 				{
 					printf("Route found! \n SEND MESG\n");
-					//send_message(existing_entry);
-
+					//sendApp	
 
 				}else
 				{
@@ -1428,13 +1428,13 @@ int main(int argc, char const *argv[])
 						}	
 						else
 						{
-
+							msg_store_entry = msg_store_lookup( recvd_packet->broadcast_id );	
 							recvd_packet->control_msg_type = 2;
 							recvd_packet->RREP_sent_flag = 0;
 							recvd_packet->route_rediscovery_flag=0;
-							recvd_packet->source_application_port_number=;
-							recvd_packet->destination_application_port_number=;
-							recvd_packet->application_data_payload = message;
+							recvd_packet->source_application_port_number= msg_store_entry->source_application_port_number;
+							recvd_packet->destination_application_port_number= SERVER_PORT;
+							strcpy(recvd_packet->application_data_payload,msg_store_entry->message);
 							recvd_packet = preparePacketForResending( recvd_packet );
 							
 							source_mac = retrieveMacFromInterfaceIndex( re->outgoing_interface_index );
