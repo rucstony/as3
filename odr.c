@@ -598,6 +598,7 @@ void recvAppPayloadMessage( int sockfd, int packet_socket, struct odr_frame * re
 		}
 		else
 		{	
+			recieved_odr_frame = preparePacketForResending( recieved_odr_frame );
 			transmitAppPayloadMessage(packet_socket,  re ,recieved_odr_frame );
 		}
 	}	
@@ -1455,7 +1456,7 @@ int main(int argc, char const *argv[])
 
 	            printf("processRecievedPacket done.PACKET SIZE : %d.\n", sizeof(*recvd_packet) );
 	            recvd_packet->number_of_hops_to_destination=recvd_packet->number_of_hops_to_destination+1;
-	            printf("sRecievedPacket accessed..%d\n" , recvd_packet->number_of_hops_to_destination);
+	            printf("sRecievedPacket accessed..NUMBER OF HOPS :%d\n" , recvd_packet->number_of_hops_to_destination);
 	 
 	            if(recvd_packet->control_msg_type==0) //RREQ
 	            {
