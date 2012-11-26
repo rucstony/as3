@@ -46,11 +46,11 @@ int main()
 	bzero(&servaddr, sizeof(servaddr));
 	servaddr.sun_family = AF_LOCAL;
 	strcpy(servaddr.sun_path, UNIX_SERV_PATH);
-
+	unlink(UNIX_SERV_PATH);
 	bind(sockfd, (SA *) &servaddr, sizeof(servaddr));
 	 len = sizeof(addr2);
     getsockname(sockfd, (SA *) &addr2, &len);
-    printf("bound name = %s, returned len = %d servaddr.sun_path= %s \n", addr2.sun_path, len);
+    printf("bound name = %s, returned len = %d s \n", addr2.sun_path, len);
 	printf("bind error for host: %s",hstrerror(h_errno));	
 	
     printf("%d gethostname done:  %s server_vm\n",gethostname( server_vm, sizeof( server_vm) ), server_vm);    
@@ -60,7 +60,7 @@ int main()
 
         msg_recv( sockfd, message_received, source_canonical_ip_presentation_format, source_port_number);
 
-        printf("in loop: msg_recv done\n");
+        printf("in loop: msg_recv done %s weqweqweqwewqeqw\n", source_canonical_ip_presentation_format);
 		retrieveHostName( source_canonical_ip_presentation_format, client_vm );
 		
 		ticks=time(NULL);

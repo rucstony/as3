@@ -380,7 +380,10 @@ int enterReverseRoute( char* destination_canonical_ip_address_presentation_forma
 	struct routing_entry * node;
 	printf("enterReverseRoute 1\n");
 	printf("enterReverseRoute 2\n");
-	if( node == NULL )
+	
+    node = routing_table_lookup( destination_canonical_ip_address_presentation_format );
+
+    if( node == NULL )
 	{
 		printf("enterReverseRoute 3\n");
 		insert_to_routing_table( destination_canonical_ip_address_presentation_format, rreq_ethernet_header_next_hop_node_ethernet_address,
@@ -528,27 +531,28 @@ void sendToAppLayer( int sockfd, char * application_data_payload ,char * sunpath
 	struct sockaddr_un  odraddr;  
     char output_to_sock[MAXLINE];
     char strPort[15] ;
-    sprintf(strPort,"%s",source_port_number);
-   	
+    sprintf(strPort,"%d",source_port_number);
+    printf("Just before string copy..\n");  	
     strcpy(output_to_sock, application_data_payload);  
 
-     sprintf(output_to_sock,"%s|%s|%s\n", application_data_payload, 
+    sprintf(output_to_sock,"%s|%s|%s\n", application_data_payload, 
                                     
                                           source_canonical_ip_address,
-                                          source_port_number);
+                                          strPort);
     
     bzero(&odraddr, sizeof(odraddr)); /* fill in server's address */
     odraddr.sun_family = AF_LOCAL;
     strcpy(odraddr.sun_path, sunpath);
 
-	printf("Sending data to application: %s\n", output_to_sock);
-    sendto(sockfd,output_to_sock,strlen(output_to_sock),0,&odraddr,sizeof(odraddr));
-
+	printf("Sending data to application: %s from %s\n", output_to_sock, odraddr.sun_path);
+    sendto(sockfd,output_to_sock,strlen(output_to_sock),0,&odraddr,SUN_LEN(&odraddr));
+    perror( "sendto" );
+    print_mapping();
     printf("Sent data to application: %s\n", output_to_sock);
 	return;
 }
 
-void recvAppPayloadMessage( int sockfd, struct odr_frame * recieved_odr_frame )
+void recvAppPayloadMessage( int sockfd, int packet_socket, struct odr_frame * recieved_odr_frame )
 {
 	char own_canonical_ip_address[INET_ADDRSTRLEN];
 	char application_data_payload[APP_DATA_PAYLOAD_LEN];
@@ -561,13 +565,26 @@ void recvAppPayloadMessage( int sockfd, struct odr_frame * recieved_odr_frame )
 	// (if at destination)Stuff the data_payload into message array and send to x based on port mapping data. 
 	if( strcmp(recieved_odr_frame->destination_canonical_ip_address,own_canonical_ip_address )==0 )
 	{
+        printf("Entered inside..\n");
 		strcpy(application_data_payload,recieved_odr_frame->application_data_payload);
-		application_port_number = ntohl(recieved_odr_frame->destination_application_port_number);	 
-		psme = port_sunpath_lookup( NULL, application_port_number );
-		printf("sunpath, port entry found : %s,  %d\n", psme->sunpath, application_port_number);
-		strcpy(sunpath,psme->sunpath);
+
+        printf("Entered inside..1\n");
+		application_port_number = recieved_odr_frame->destination_application_port_number;	 
+		        printf("Entered inside..2\n");
+        printf("\n\nApplication port number : %d\n", application_port_number );
+        print_mapping();        
+        psme = port_sunpath_lookup( NULL, recieved_odr_frame->destination_application_port_number );
+		        printf("Entered inside..3\n");
+
+                printf("sunpath, port entry found1 : %s,  %d\n", psme->sunpath, recieved_odr_frame->destination_application_port_number);
+        
+        printf("sunpath, port entry found2 : %s,  %d\n", psme->sunpath, recieved_odr_frame->source_application_port_number);
+		        printf("Entered inside..4\n");
+
+        strcpy(sunpath,psme->sunpath);
 		
-       
+               printf("Entered inside..5\n");
+
 		sendToAppLayer( sockfd, application_data_payload, sunpath ,recieved_odr_frame->source_canonical_ip_address, application_port_number );
 	}	
 	else
@@ -575,12 +592,13 @@ void recvAppPayloadMessage( int sockfd, struct odr_frame * recieved_odr_frame )
 		re = check_if_route_exists( recieved_odr_frame->destination_canonical_ip_address );	
 		if( re == NULL )
 		{
-			printf("Cannot find Reverse route!! staleness_param too short.\n");
+			printf("Some shit..\n"); 
+            //printf("Cannot find Reverse route!! staleness_param too short.\n");
 			//FloodRREQ()
 		}
 		else
 		{	
-			transmitAppPayloadMessage(sockfd,  re ,recieved_odr_frame );
+			transmitAppPayloadMessage(packet_socket,  re ,recieved_odr_frame );
 		}
 	}	
 }
@@ -674,7 +692,6 @@ void getOwnCanonicalIPAddress(char* own_canonical_ip_address)
 	/* Flood with broadcast address on all interfaces except eth0 and lo and recieved interface */
 	for (hwahead = hwa = Get_hw_addrs(); hwa != NULL; hwa = hwa->hwa_next) 
 	{
-		printf("%s\n",hwa->if_name );
 		if( strcmp(hwa->if_name, "eth0")==0 )
 		{	
 			printf("Entered if..\n");
@@ -1095,12 +1112,14 @@ void processRREQPacket( int packet_socket, struct odr_frame * recvd_packet,
 	printf("5\n");
 
 	new_rreq = enterNewRREQtoList( recvd_packet->broadcast_id, recvd_packet->source_canonical_ip_address );
-
+    print_routing_table();
 	notifyOthers = enterReverseRoute( recvd_packet->source_canonical_ip_address,
 									  next_hop_node_ethernet_address,
 									  /*interface index*/odraddr.sll_ifindex,recvd_packet->number_of_hops_to_destination, 0 );
 	
-	rl = rreq_list_lookup( recvd_packet->source_canonical_ip_address );									  
+    print_routing_table();
+	printf("notifyOthers----->%d\n",notifyOthers );
+    rl = rreq_list_lookup( recvd_packet->source_canonical_ip_address );									  
 
 	if( (!notifyOthers) 
 		&& (!new_rreq)
@@ -1112,7 +1131,7 @@ void processRREQPacket( int packet_socket, struct odr_frame * recvd_packet,
 	printf("6\n");
 	if(strcmp(recvd_packet->destination_canonical_ip_address,source_addr)==0)
 	{
-		printf("7\n");
+		printf("recvd_packet->destination_canonical_ip_address %s, source_addr %s 7\n",recvd_packet->destination_canonical_ip_address,source_addr);
 		//odr is at the destination node 
 		recvd_packet->number_of_hops_to_destination=0;
 
@@ -1171,15 +1190,19 @@ void sendAppPayload( int packet_socket, struct routing_entry * re, char * source
 					 int source_application_port_number, int destination_application_port_number, char * application_data_payload,
 					 int number_of_bytes_in_application_message )
 {
-	struct odr_frame * populated_odr_frame;
+	
+    struct odr_frame * populated_odr_frame;
 	char * source_mac;
+    printf("sendAppPayload 1 %s \n", destination_canonical_ip_address);
 	populated_odr_frame = createApplicationPayloadMessage( source_canonical_ip_address, -1,
 													  	   destination_canonical_ip_address,   
 								 						   re->number_of_hops_to_destination, source_application_port_number,
 							   							   destination_application_port_number, application_data_payload ,
 							   							   number_of_bytes_in_application_message );
-	source_mac = retrieveMacFromInterfaceIndex( re->outgoing_interface_index );
-	sendODRframe( packet_socket ,populated_odr_frame, source_mac, 
+	printf("sendAppPayload 2\n");
+    source_mac = retrieveMacFromInterfaceIndex( re->outgoing_interface_index );
+	printf("sendAppPayload 3\n" );
+    sendODRframe( packet_socket ,populated_odr_frame, source_mac, 
 				  re->next_hop_node_ethernet_address, re->outgoing_interface_index );
 	return;
 }
@@ -1386,7 +1409,7 @@ int main(int argc, char const *argv[])
 								0, 0,
 								route_rediscovery_flag );
 					printf("RREQ broadcast sent..\n");
-					sleep(2);
+					//sleep(2);
 				}
 				
 			}//else
@@ -1465,13 +1488,16 @@ int main(int argc, char const *argv[])
 						}	
 						else
 						{
-							msg_store_entry = msg_store_lookup( recvd_packet->broadcast_id );	
+							msg_store_entry = msg_store_lookup( recvd_packet->broadcast_id );
+                             print_msg_store();	
 							recvd_packet->control_msg_type = 2;
 							recvd_packet->RREP_sent_flag = 0;
 							recvd_packet->route_rediscovery_flag=0;
 							recvd_packet->source_application_port_number= msg_store_entry->source_application_port_number;
 							recvd_packet->destination_application_port_number= msg_store_entry->destination_application_port_number;
-							strcpy(recvd_packet->application_data_payload,msg_store_entry->message);
+							printf("source_application_port_number %d\n",recvd_packet->source_application_port_number);
+                            printf("destination_application_port_number %d\n",recvd_packet->destination_application_port_number );
+                            strcpy(recvd_packet->application_data_payload,msg_store_entry->message);
 							recvd_packet->number_of_bytes_in_application_message = sizeof(msg_store_entry->message);
 							recvd_packet = preparePacketForResending( recvd_packet );
 							
@@ -1487,24 +1513,16 @@ int main(int argc, char const *argv[])
 		           		recvd_packet = preparePacketForResending( recvd_packet );
 		           		sendRREP( packet_socket, recvd_packet);
 	            	}
-	            	printf("RREP processing over..\n");
 	            }else//message
 	            {
 	            	//recvd_packet	
 	            	printf("application_data_payload received\n ");
-	            	re = check_if_route_exists( recvd_packet->destination_canonical_ip_address );
-	            	if( re == NULL )
-	            	{
-	            		printf("Route expired ?\n");
-	            		//FloodRREQ here.
-	            	}		
-	            	else
-	            	{	
-						enterReverseRoute( recvd_packet->source_canonical_ip_address,	
-										   re->next_hop_node_ethernet_address,
-										   re->outgoing_interface_index, re->number_of_hops_to_destination, 1 );
-		            	recvAppPayloadMessage( packet_socket, recvd_packet );
-		            }	
+                  	
+					enterReverseRoute( recvd_packet->source_canonical_ip_address,	
+                                        next_hop_node_ethernet_address,
+                                        /*interface index*/odraddr.sll_ifindex,recvd_packet->number_of_hops_to_destination, 1 );
+                    recvAppPayloadMessage( sockfd, packet_socket, recvd_packet );
+		            	
 	            }
 		     }
 		    }
@@ -1534,6 +1552,8 @@ struct routing_entry * check_if_route_exists( char * destination_canonical_ip_pr
 	struct timeval curr_time_ms; 
 	struct routing_entry * node; 
 	
+    printf("Destination : %s\n", destination_canonical_ip_presentation_format );
+    print_routing_table();
 	node = routing_table_lookup( destination_canonical_ip_presentation_format );
 	
 	if( node != NULL )
@@ -1543,9 +1563,10 @@ struct routing_entry * check_if_route_exists( char * destination_canonical_ip_pr
 				
 			if(msec >= staleness_param*1000 )
 			{
+
 				printf("Time diff : %ld\n", msec);
 				routing_table_delete_entry( destination_canonical_ip_presentation_format );
-			}
+            }
 			else
 			{
 				route_found = 1;

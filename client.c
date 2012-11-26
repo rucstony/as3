@@ -98,9 +98,9 @@ int main(int argc, char **argv)
         retrieveDestinationCanonicalIpPresentationFormat(server_vm, destination_canonical_ip_presentation_format);      
          //   strcpy(message_to_be_sent,"trace message\n");
         strcpy(route_rediscovery_flag,"0");
-        alarm(50);
+        alarm(500);
         printf("after alarm set\n");
-        msg_send( sockfd,  destination_canonical_ip_presentation_format, "77356",  message_to_be_sent, route_rediscovery_flag );
+        msg_send( sockfd,  destination_canonical_ip_presentation_format, "80",  message_to_be_sent, route_rediscovery_flag );
         
         printf("before recv\n");
         if(sigsetjmp(jmpbuf,1)!=0)
@@ -137,7 +137,7 @@ static void message_receive_timeout(int signo)
       printf("Client at node   %s  : timeout on response from   %s\n", client_vm, server_vm);
       printf("Retransmitting message with Forced Route Discovery\n");
       strcpy(route_rediscovery_flag,"1");
-      msg_send( sockfd,  destination_canonical_ip_presentation_format, "77356",  message_to_be_sent, route_rediscovery_flag );
+      msg_send( sockfd,  destination_canonical_ip_presentation_format, "80",  message_to_be_sent, route_rediscovery_flag );
        siglongjmp(jmpbuf,1);
         return;
 }

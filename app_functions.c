@@ -22,7 +22,7 @@ void msg_send( int sockfd_for_write,
                                           route_rediscovery_flag);
     printf("%s\n", output_to_sock);
     sendto(sockfd_for_write,output_to_sock,strlen(output_to_sock),0,&odraddr,sizeof(odraddr));
-    printf("sendto : %s\n", hstrerror(h_errno));
+    //printf("sendto : %s\n", hstrerror(h_errno));
 }
 
 /*
@@ -37,6 +37,7 @@ int msg_recv( int sockfd_for_read,char *message_received,
     char *msg_fields[MAXLINE];
     struct sockaddr_un  odraddr;  
     int i=0,j,nready,n;
+    socklen_t oddrlen;
     fd_set        rset;
 
     //bzero(&odraddr, sizeof(odraddr)); /* fill in server's address */
@@ -50,6 +51,7 @@ int msg_recv( int sockfd_for_read,char *message_received,
  //   n = recvfrom( sockfd_for_read,str_from_sock,MAXLINE,0,&odraddr,sizeof(odraddr) );
  //   printf("%d\n", n);
     FD_ZERO(&rset);
+    
     //maxfdp1 = max(sockfd_for_read, udpfd) + 1;
     for ( ; ; ) 
     {
@@ -62,12 +64,13 @@ int msg_recv( int sockfd_for_read,char *message_received,
             else
               err_sys("select error");
         }
-
+printf("nready..%d\n",nready);
         if (FD_ISSET(sockfd_for_read, &rset)) 
         {
             
-            //printf("in FD_ISSET\n");
-            if((n=recvfrom(sockfd_for_read,str_from_sock,MAXLINE,0,&odraddr,sizeof(odraddr)))>0)
+            printf("in FD_ISSET\n");
+            oddrlen=sizeof(odraddr);
+            if((n=recvfrom(sockfd_for_read,str_from_sock,MAXLINE,0,&odraddr,&oddrlen))>=0)
             {
                // printf("fgets done..\n");
                 printf("%s\n", str_from_sock);
@@ -81,12 +84,17 @@ int msg_recv( int sockfd_for_read,char *message_received,
                 for(j = 0; j <= i-1; j++) {
                     printf("%s\n", msg_fields[j]); //print out all of the tokens
                 }
+                printf("Error 1\n");
+               strcpy(message_received,msg_fields[0]);
+                printf("Error 2\n");
 
-               message_received=msg_fields[0];
-               source_canonical_ip_presentation_format=msg_fields[1];
-               source_port_number=atoi(msg_fields[2]);
-               
-               return atoi(sockfd_for_read); //port to read from
+               strcpy(source_canonical_ip_presentation_format,msg_fields[1]);
+                printf("Error 3----------source_canonical_ip_presentation_format----%s-------\n", source_canonical_ip_presentation_format);
+
+               strcpy(source_port_number, msg_fields[2]);
+                 printf("Error 3----------source_port_number--------%s--\n", source_port_number);
+
+               return 1; //port to read from
            }
            //printf("out FD_ISSET\n");
           
