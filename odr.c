@@ -585,7 +585,7 @@ void recvAppPayloadMessage( int sockfd, int packet_socket, struct odr_frame * re
 		
                printf("Entered inside..5\n");
 
-		sendToAppLayer( sockfd, application_data_payload, sunpath ,recieved_odr_frame->source_canonical_ip_address, application_port_number );
+		sendToAppLayer( sockfd, application_data_payload, sunpath ,recieved_odr_frame->source_canonical_ip_address, recieved_odr_frame->source_application_port_number );
 	}	
 	else
 	{
