@@ -1,4 +1,5 @@
-include /home/users/cse533/Stevens/unpv13e/Make.defines
+include ./Make.defines
+#include /home/users/cse533/Stevens/unpv13e/Make.defines
 # This is a sample Makefile which compiles source files named:
 # - tcpechotimeserv.c
 # - tcpechotimecliv.c

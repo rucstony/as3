@@ -15,6 +15,10 @@
 #define SERVER_PORT 80
 
 int client_port=101;
+
+/*
+	Routing table entry node. 
+*/
 struct routing_entry 
 {
 
@@ -27,6 +31,9 @@ struct routing_entry
 
 }*rt_head, *rt_tmp;
 
+/*
+	Port-Sunpath mapping maintained at the ODR. 
+*/
 struct port_sunpath_mapping_entry
 {
 	int  port;
@@ -37,6 +44,9 @@ struct port_sunpath_mapping_entry
 
 }*psm_head,*psm_tmp;
 
+/*
+	List of all rreq's recieved at a node.
+*/
 struct rreq_list
 {
 	int broadcast_id;
@@ -45,6 +55,9 @@ struct rreq_list
 }*rl_head,*rl_tmp;
 
 /* ODR FRAME ####### */
+/*
+	Principal Odr-frame that is populated and sent on the PF-PACKET socket. 
+*/
 struct odr_frame
 {
 	uint32_t control_msg_type; /* RREQ / RREP/ application payload */
@@ -67,7 +80,9 @@ struct odr_frame
 	char application_data_payload[APP_DATA_PAYLOAD_LEN];
 };
 
-
+/*
+	Message store keeps track of messages that are waiting to be sent with routing information waiting to be received. 
+*/
 struct msg_store
 {
 	int broadcast_id;
@@ -77,6 +92,9 @@ struct msg_store
 	struct msg_store * next;
 }*ms_head,*ms_tmp;
 
+/*
+	Insert into message store. 
+*/
 void insert_to_msg_store( int broadcast_id ,int source_application_port_number, int destination_application_port_number , char * message )
 {
 
@@ -106,6 +124,9 @@ void insert_to_msg_store( int broadcast_id ,int source_application_port_number, 
  	return;
  }
 
+/*
+	Message store lookup.
+*/
 struct msg_store * msg_store_lookup( int broadcast_id )
 {
 	struct msg_store *node; 	
@@ -122,6 +143,9 @@ struct msg_store * msg_store_lookup( int broadcast_id )
 	return NULL;	
 }
 
+/*
+	Delete an entry from the message store. 
+*/
 int msg_store_delete_entry( int broadcast_id )
 {
 	struct msg_store *node; 	
@@ -143,6 +167,9 @@ int msg_store_delete_entry( int broadcast_id )
 	return -1;
 }
 
+/*
+	Print the message store. 
+*/
 void print_msg_store()
 {
 	struct msg_store *node; 	
@@ -165,7 +192,9 @@ void print_msg_store()
 	return;	
 }
 
-
+/*
+	Insert entry into port-sunpath mapping table.
+*/
 struct port_sunpath_mapping_entry * insert_to_port_sunpath_mapping( char * sunpath, int port )
 {
     struct port_sunpath_mapping_entry *node = (struct port_sunpath_mapping_entry *)malloc( sizeof(struct port_sunpath_mapping_entry) );
@@ -192,6 +221,9 @@ struct port_sunpath_mapping_entry * insert_to_port_sunpath_mapping( char * sunpa
  	return node;
  }
 
+/*
+	Port-sunpath mapping lookup.
+*/
 struct port_sunpath_mapping_entry * port_sunpath_lookup( char * sunpath, int application_port_number )
 {
 	struct port_sunpath_mapping_entry *node; 	
@@ -219,6 +251,9 @@ struct port_sunpath_mapping_entry * port_sunpath_lookup( char * sunpath, int app
 }
 
 
+/*
+	Delete port-sunpath mapping entries.
+*/
 int port_sunpath_delete( char * sunpath )
 {
 	struct port_sunpath_mapping_entry *node; 	
@@ -240,6 +275,9 @@ int port_sunpath_delete( char * sunpath )
 	return -1;
 }
 
+/*
+	Insert entry to routing table. 
+*/
 void insert_to_routing_table( 	char* destination_canonical_ip_address,	char* next_hop_node_ethernet_address,
 								int outgoing_interface_index, int number_of_hops_to_destination )
 {
@@ -275,6 +313,9 @@ void insert_to_routing_table( 	char* destination_canonical_ip_address,	char* nex
  	return;
  }
 
+/*
+	Routing table lookup.
+*/
 struct routing_entry * routing_table_lookup( char * destination_canonical_ip_address )
 {
 	struct routing_entry *node; 	
@@ -292,6 +333,9 @@ struct routing_entry * routing_table_lookup( char * destination_canonical_ip_add
 	return NULL;	
 }
 
+/*
+	Deletes an entry from the routing table entry. 
+*/
 int routing_table_delete_entry( char * destination_canonical_ip_address )
 {
 	struct routing_entry *node; 	
@@ -313,6 +357,9 @@ int routing_table_delete_entry( char * destination_canonical_ip_address )
 	return -1;
 }
 
+/*
+	Print routing table.
+*/
 void print_routing_table()
 {
 	struct routing_entry *node; 	
@@ -334,6 +381,9 @@ void print_routing_table()
 	return;	
 }
 
+/*
+	Print the Sunpath Port mapping.
+*/
 void print_mapping()
 {
 	struct port_sunpath_mapping_entry *node; 	
@@ -461,6 +511,9 @@ void floodRREQ( int sockfd, int recieved_interface_index, char * source_canonica
 	return;
 }
 
+/*
+	Retrieve Mac address from interface index.
+*/
 unsigned char * retrieveMacFromInterfaceIndex( int interface_index )
 {
 	unsigned char source_mac[6];
@@ -494,7 +547,9 @@ unsigned char * retrieveMacFromInterfaceIndex( int interface_index )
 	return source_mac;
 }
 
-/* FIX THIS  */
+/*
+	Send RREP back to the source.
+*/
 void sendRREP( int sockfd, struct odr_frame * recieved_odr_frame )
 {
 	struct hwa_info	*hwa, *hwahead;
@@ -517,6 +572,9 @@ void sendRREP( int sockfd, struct odr_frame * recieved_odr_frame )
 	return;
 }
 
+/*
+	Called when an intermediate node recieves the transmit AppPayloadMessage. 
+*/
 void transmitAppPayloadMessage( int s, struct routing_entry * re ,struct odr_frame * recieved_odr_frame )
 {
 	char source_mac[6];
@@ -526,6 +584,9 @@ void transmitAppPayloadMessage( int s, struct routing_entry * re ,struct odr_fra
 	return;
 }
 
+/*
+	Send Application payload message to the application layer.
+*/
 void sendToAppLayer( int sockfd, char * application_data_payload ,char * sunpath ,char *source_canonical_ip_address, int source_port_number)
 {
 	struct sockaddr_un  odraddr;  
@@ -552,6 +613,9 @@ void sendToAppLayer( int sockfd, char * application_data_payload ,char * sunpath
 	return;
 }
 
+/*
+	Recieve application payload message from the PF-PACKET socket.
+*/
 void recvAppPayloadMessage( int sockfd, int packet_socket, struct odr_frame * recieved_odr_frame )
 {
 	char own_canonical_ip_address[INET_ADDRSTRLEN];
@@ -592,8 +656,7 @@ void recvAppPayloadMessage( int sockfd, int packet_socket, struct odr_frame * re
 		re = check_if_route_exists( recieved_odr_frame->destination_canonical_ip_address );	
 		if( re == NULL )
 		{
-			printf("Some shit..\n"); 
-            //printf("Cannot find Reverse route!! staleness_param too short.\n");
+		   //printf("Cannot find Reverse route!! staleness_param too short.\n");
 			//FloodRREQ()
 		}
 		else
@@ -713,91 +776,9 @@ struct routing_entry * check_if_route_exists( char * destination_canonical_ip_pr
 //routing_entry recv_ODR();
 long staleness_param;
 
-/*
-	BROADCAST ODR FRAME
-	Straps on the ethernet header to the odr-frame and sends out on broadcast address. (JUST FOR 1 INTERFACE)
-*/
-void sendODRframe1( int s , struct odr_frame * populated_odr_frame , char * source_hw_mac_address )
-{
-	
-	int j;
-	/*target address*/
-	struct sockaddr_ll socket_address;
-
-	/*buffer for ethernet frame*/
-	void* buffer = (void*)malloc(ETH_FRAME_LEN);
-	 
-	/*pointer to ethenet header*/
-	unsigned char* etherhead = buffer;
-		
-	/*pointer to userdata in ethernet frame*/
-	unsigned char* data = buffer + 14;
-		
-	/*another pointer to ethernet header*/
-	struct ethhdr *eh = (struct ethhdr *)etherhead;
-	 
-	int send_result = 0;
-
-	/*our MAC address*/
-
-	unsigned char src_mac[6] = {0x00, 0x0c, 0x29, 0x11, 0x58, 0xa2};
-
-	/*Broadcast MAC address*/
-	//unsigned char dest_mac[6] = {0x00, 0x0c, 0x29, 0x24, 0x8f, 0x70};
-	unsigned char dest_mac[6] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
-
-	printf("sending frame on socket: %d\n",s );
-	/*prepare sockaddr_ll*/
-
-	/*RAW communication*/
-	socket_address.sll_family   = PF_PACKET;	
-	/*we don't use a protocoll above ethernet layer
-	  ->just use anything here*/
-	socket_address.sll_protocol = htons(ETH_P_IP);	
-
-	/*ARP hardware identifier is ethernet*/
-	socket_address.sll_hatype   = ARPHRD_ETHER;
-		
-	/*target is another host*/
-	socket_address.sll_pkttype  = PACKET_OTHERHOST;
-
-	/*index of the network device
-	see full code later how to retrieve it*/
-	socket_address.sll_ifindex  = 3;
-
-	/*address length*/
-	socket_address.sll_halen    = ETH_ALEN;		
-	
-	/*MAC - begin*/
-	socket_address.sll_addr[0]  = 0xFF;		
-	socket_address.sll_addr[1]  = 0xFF;		
-	socket_address.sll_addr[2]  = 0xFF;
-	socket_address.sll_addr[3]  = 0xFF;
-	socket_address.sll_addr[4]  = 0xFF;
-	socket_address.sll_addr[5]  = 0xFF;
-	/*MAC - end*/
-	socket_address.sll_addr[6]  = 0x00;/*not used*/
-	socket_address.sll_addr[7]  = 0x00;/*not used*/
-
-	/*set the frame header*/
-	memcpy((void*)buffer, (void*)dest_mac, ETH_ALEN);
-	memcpy((void*)(buffer+ETH_ALEN), (void*)src_mac, ETH_ALEN);
-	eh->h_proto = htons(USID_PROTO);
-	/*fill the frame with some data*/
-	for (j = 0; j < 1500; j++) {
-		data[j] = (unsigned char)((int) (255.0*rand()/(RAND_MAX+1.0)));
-	}
-
-	/*send the packet*/
-	send_result = sendto(s, buffer, ETH_FRAME_LEN, 0, 
-		      (struct sockaddr*)&socket_address, sizeof(socket_address));
-	if (send_result == -1){ perror("sendto"); }
-
-
-}
 
 /*
-	CHANGE THISSSSS..
+	Principal frame-sending function. Packs the data and sends it on PF-PACKET socket.
 */
 void sendODRframe( int s , struct odr_frame * populated_odr_frame , char * source_hw_mac_address, char * destination_hw_mac_address , int if_index )
 {
@@ -909,6 +890,9 @@ void sendODRframe( int s , struct odr_frame * populated_odr_frame , char * sourc
 	printf("Done sending..WOO\n");
 }
 
+/*
+	Convert relevant data from the frame to Network Byte Order before sending on network.
+*/
 struct odr_frame * convertToNetworkByteOrder( struct odr_frame * recieved_odr_frame )
 {
 	uint32_t control_msg_type;
@@ -939,7 +923,9 @@ struct odr_frame * convertToNetworkByteOrder( struct odr_frame * recieved_odr_fr
 	return recieved_odr_frame;
 }
 
-
+/*
+	Prepare packet before sending on the network.
+*/
 struct odr_frame * preparePacketForResending( struct odr_frame * recvd_packet )
 {
 	printf("\nPreparing packet for resending..\n\t - Converting to NBO.\n");
@@ -978,7 +964,9 @@ struct odr_frame * convertToHostByteOrder( struct odr_frame * recieved_odr_frame
 	return recieved_odr_frame;
 }
 
-
+/*
+	Process the recieved packet. Convert to HBO and return the packet.
+*/
 struct odr_frame * processRecievedPacket(char * str_from_sock)
 {
 	struct odr_frame * recieved_odr_frame;
@@ -1005,6 +993,9 @@ struct odr_frame * processRecievedPacket(char * str_from_sock)
 
 }
 
+/*
+	Insert into the RREQ-list. 
+*/
 void insert_to_rreq_list( int broadcast_id ,char* source_canonical_ip_address )
 {
 
@@ -1103,8 +1094,9 @@ int enterNewRREQtoList( int broadcast_id, char * source_canonical_ip_address )
 	return 0;	
 }
 
-// before inserting route, lookup and check if exists  
-
+/*
+	Process the recieved RREQ packet.
+*/
 void processRREQPacket( int packet_socket, struct odr_frame * recvd_packet,  
 						char * next_hop_node_ethernet_address, struct sockaddr_ll  odraddr, char * source_addr )
 {
@@ -1187,6 +1179,9 @@ void processRREQPacket( int packet_socket, struct odr_frame * recvd_packet,
 	return;
 }
 
+/*
+	Send the application payload message onto the network.
+*/
 void sendAppPayload( int packet_socket, struct routing_entry * re, char * source_canonical_ip_address, char * destination_canonical_ip_address,
 					 int source_application_port_number, int destination_application_port_number, char * application_data_payload,
 					 int number_of_bytes_in_application_message )
