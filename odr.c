@@ -469,7 +469,8 @@ void update_routing_table( char* destination_canonical_ip_address_presentation_f
 	node = routing_table_lookup( destination_canonical_ip_address_presentation_format );
 	gettimeofday(&curr_time_ms, NULL);
 
-	printf("Updating the routing table :\nDestination Canonical IP address : %s\nNew Hop count:%d\n", destination_canonical_ip_presentation_format, number_of_hops_to_destination );
+	printf("Updating the routing table :\nDestination Canonical IP address : %s\nNew Hop count:%d\n",
+									 destination_canonical_ip_address_presentation_format, number_of_hops_to_destination );
 
 	/* Updating the routing table entry. */
 	strcpy(node->destination_canonical_ip_address, destination_canonical_ip_address_presentation_format);
@@ -484,7 +485,7 @@ void update_routing_table( char* destination_canonical_ip_address_presentation_f
 
 /* DO THIS BEFORE GENERATING AN RREP WHEN APPROPRIATE */
 int enterReverseRoute( char* destination_canonical_ip_address_presentation_format,	char* rreq_ethernet_header_next_hop_node_ethernet_address,
-						char* outgoing_interface_index, int number_of_hops_to_destination, int flag )
+						char* outgoing_interface_index, int number_of_hops_to_destination, int flag, int route_rediscovery_flag )
 {
 	struct routing_entry * node;
 	printf("enterReverseRoute 1\n");
@@ -502,8 +503,14 @@ int enterReverseRoute( char* destination_canonical_ip_address_presentation_forma
 	}
 	else
 	{
-		printf("enterReverseRoute 5\n");
-		if( (node->number_of_hops_to_destination == number_of_hops_to_destination) )
+		if( (route_rediscovery_flag == 1) )
+		{
+			printf("Updating the routing entry irrespective of path efficiency (route_rediscovery_flag = 1)..\n");
+			update_routing_table( destination_canonical_ip_address_presentation_format, rreq_ethernet_header_next_hop_node_ethernet_address,
+								  outgoing_interface_index, number_of_hops_to_destination );
+			return 1;			
+		}	
+		else if( (node->number_of_hops_to_destination == number_of_hops_to_destination) )
 		{
 			printf("Reconfirming route..\n");
 			update_routing_table( destination_canonical_ip_address_presentation_format, rreq_ethernet_header_next_hop_node_ethernet_address,
@@ -1193,7 +1200,7 @@ void processRREQPacket( int packet_socket, struct odr_frame * recvd_packet,
     print_routing_table();
 	notifyOthers = enterReverseRoute( recvd_packet->source_canonical_ip_address,
 									  next_hop_node_ethernet_address,
-									  /*interface index*/odraddr.sll_ifindex,recvd_packet->number_of_hops_to_destination, 0 );
+									  /*interface index*/odraddr.sll_ifindex,recvd_packet->number_of_hops_to_destination, 0 , recvd_packet->route_rediscovery_flag);
 	
     print_routing_table();
 	printf("notifyOthers----->%d\n",notifyOthers );
@@ -1221,7 +1228,7 @@ void processRREQPacket( int packet_socket, struct odr_frame * recvd_packet,
 			sendRREP( packet_socket, recvd_packet);
 		}
         				
-	}else
+	}else /* Intermediate node recieved an RREQ */
 	{
 		printf("8\n");
 
@@ -1555,12 +1562,13 @@ int main(int argc, char const *argv[])
 					/* Forward routes. */
 					enterReverseRoute( recvd_packet->destination_canonical_ip_address,
 										next_hop_node_ethernet_address,
-										/*interface index*/odraddr.sll_ifindex,recvd_packet->number_of_hops_to_destination, 1 );
+										/*interface index*/odraddr.sll_ifindex,recvd_packet->number_of_hops_to_destination, 1 , 0);
 
 
 					if( strcmp(  recvd_packet->source_canonical_ip_address, source_addr)==0 )
 					{
 						/* We are at the source finally. */
+						printf("PACKET RECIEVED AT THE SOURCE : IT TOOK %d hops to accomplish this.\n", recvd_packet->number_of_hops_to_destination );
 						recvd_packet->number_of_hops_to_destination=0;
 	 
 						printf("\nRETRIEVED A PATH !!\n");
@@ -1604,7 +1612,7 @@ int main(int argc, char const *argv[])
                   	
 					enterReverseRoute( recvd_packet->source_canonical_ip_address,	
                                         next_hop_node_ethernet_address,
-                                        /*interface index*/odraddr.sll_ifindex,recvd_packet->number_of_hops_to_destination, 1 );
+                                        /*interface index*/odraddr.sll_ifindex,recvd_packet->number_of_hops_to_destination, 1 , 0);
                     recvAppPayloadMessage( sockfd, packet_socket, recvd_packet );
 		            	
 	            }
