@@ -461,7 +461,7 @@ void print_mapping()
 /* ETHERNET LEVEL FUNCTIONS - creating ethernet headers and sending messages. */
 
 void update_routing_table( char* destination_canonical_ip_address_presentation_format,	char* next_hop_node_ethernet_address,
-						   char* outgoing_interface_index, int number_of_hops_to_destination )
+						   int outgoing_interface_index, int number_of_hops_to_destination )
 {
 	struct routing_entry * node;
 	struct timeval curr_time_ms;
@@ -473,19 +473,29 @@ void update_routing_table( char* destination_canonical_ip_address_presentation_f
 									 destination_canonical_ip_address_presentation_format, number_of_hops_to_destination );
 
 	/* Updating the routing table entry. */
-	strcpy(node->destination_canonical_ip_address, destination_canonical_ip_address_presentation_format);
-	strcpy(node->next_hop_node_ethernet_address, next_hop_node_ethernet_address);
-	strcpy(node->outgoing_interface_index, outgoing_interface_index);
+	printf("1\n");
 	
+	strcpy(node->destination_canonical_ip_address, destination_canonical_ip_address_presentation_format);
+	printf("2\n");
+	
+	strcpy(node->next_hop_node_ethernet_address, next_hop_node_ethernet_address);
+	printf("3\n");
+	node->outgoing_interface_index = outgoing_interface_index;
+	printf("4\n");
+		
 	node->number_of_hops_to_destination = number_of_hops_to_destination;
+	printf("5\n");
+	
 	node->made_or_last_reconfirmed_or_updated_timestamp = curr_time_ms;
+	printf("6\n");
+	
 	return;
 }
 
 
 /* DO THIS BEFORE GENERATING AN RREP WHEN APPROPRIATE */
 int enterReverseRoute( char* destination_canonical_ip_address_presentation_format,	char* rreq_ethernet_header_next_hop_node_ethernet_address,
-						char* outgoing_interface_index, int number_of_hops_to_destination, int flag, int route_rediscovery_flag )
+						int outgoing_interface_index, int number_of_hops_to_destination, int flag, int route_rediscovery_flag )
 {
 	struct routing_entry * node;
 	printf("enterReverseRoute 1\n");
@@ -537,7 +547,7 @@ int enterReverseRoute( char* destination_canonical_ip_address_presentation_forma
 
 
 void updateReverseRoute( char* source_canonical_ip_address_presentation_format,char* next_hop_node_ethernet_address,
-						char* outgoing_interface_index, int number_of_hops_to_destination )
+						int outgoing_interface_index, int number_of_hops_to_destination )
 {
 	return;
 }
@@ -739,7 +749,7 @@ void recvAppPayloadMessage( int sockfd, int packet_socket, struct odr_frame * re
 			
 			gettimeofday(&curr_time_ms, NULL);
 			psme->last_updated_timestamp = curr_time_ms;
-			printf("Reconfirmed port, sunpath entry : %d, %s\n",psme->sunpath , psme->port );
+			printf("Reconfirmed port, sunpath entry : %s, %d\n",psme->sunpath , psme->port );
 		}
 
 	}	
@@ -1205,7 +1215,7 @@ void processRREQPacket( int packet_socket, struct odr_frame * recvd_packet,
     print_routing_table();
 	printf("notifyOthers----->%d\n",notifyOthers );
     rl = rreq_list_lookup( recvd_packet->source_canonical_ip_address );									  
-
+    printf("NOTIFY OTHERS : %d, NEW RREQ ? : %d, PACKET BROADCAST ID : %d\n", notifyOthers, new_rreq, recvd_packet->broadcast_id );
 	if( (!notifyOthers) 
 		&& (!new_rreq)
 		&& ( recvd_packet->broadcast_id <= rl->broadcast_id  ) )
@@ -1266,6 +1276,7 @@ void processRREQPacket( int packet_socket, struct odr_frame * recvd_packet,
 				printf( "Route Rediscovery Flag is set. Ignoring existing routes..\n" );				
 		}
 
+		
 		floodRREQ( packet_socket, odraddr.sll_ifindex/*recieved_interface_index*/, recvd_packet->source_canonical_ip_address,
 				   recvd_packet->broadcast_id, recvd_packet->destination_canonical_ip_address,   
 				   recvd_packet->number_of_hops_to_destination, recvd_packet->RREP_sent_flag, recvd_packet->route_rediscovery_flag );
@@ -1476,6 +1487,7 @@ int main(int argc, char const *argv[])
 					node = port_sunpath_lookup( procaddr.sun_path, 0 );	
 					printf("Route found! \n SEND MESG\n");
 					getOwnCanonicalIPAddress( own_canonical_ip_address );
+					
 					sendAppPayload(  packet_socket, route_exists, own_canonical_ip_address, destination_canonical_ip_presentation_format,
 			  					    node->port, destination_port_number, message_to_be_sent,
 					 				sizeof(message_to_be_sent) );
@@ -1580,6 +1592,8 @@ int main(int argc, char const *argv[])
 						}	
 						else
 						{
+							printf("BROADCAST ID %d\n",recvd_packet->broadcast_id );
+							print_msg_store();
 							msg_store_entry = msg_store_lookup( recvd_packet->broadcast_id );
                              print_msg_store();	
 							recvd_packet->control_msg_type = 2;
@@ -1596,7 +1610,7 @@ int main(int argc, char const *argv[])
 							source_mac = retrieveMacFromInterfaceIndex( re->outgoing_interface_index );
 
 							sendODRframe( packet_socket , recvd_packet , source_mac, re->next_hop_node_ethernet_address , re->outgoing_interface_index );
-							msg_store_delete_entry( recvd_packet->broadcast_id );
+							msg_store_delete_entry( ntohl(recvd_packet->broadcast_id) );
 						}
 					}		            
 		           	else
@@ -1650,8 +1664,11 @@ struct routing_entry * check_if_route_exists( char * destination_canonical_ip_pr
 	
 	if( node != NULL )
 	{
+			printf("1\n");
 			gettimeofday(&curr_time_ms, NULL);
+			printf("2\n");
 		  	msec = timevaldiff( &(node->made_or_last_reconfirmed_or_updated_timestamp), &curr_time_ms );
+			printf("3\n");
 				
 			if(msec >= staleness_param*1000 
 				|| route_rediscovery_flag == 1)
@@ -1663,7 +1680,11 @@ struct routing_entry * check_if_route_exists( char * destination_canonical_ip_pr
 			else
 			{
 				route_found = 1;
+			printf("4\n");
+
 				node->made_or_last_reconfirmed_or_updated_timestamp = curr_time_ms;
+			printf("5\n");
+
 				return node; 
 			}
 	}
