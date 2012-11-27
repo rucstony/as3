@@ -254,7 +254,8 @@ struct port_sunpath_mapping_entry * port_sunpath_lookup( char * sunpath, int app
 				gettimeofday(&curr_time_ms, NULL);
 				node->last_updated_timestamp = curr_time_ms;
 	
-				if(timevaldiff(curr_time_ms, node)< TIME_TO_LIVE_MS)
+				if(timevaldiff(curr_time_ms, node)< TIME_TO_LIVE_MS 
+					|| node->port == 80)
 				{
 					return node;
 				}
