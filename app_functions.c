@@ -22,7 +22,6 @@ void msg_send( int sockfd_for_write,
                                           route_rediscovery_flag);
     printf("%s\n", output_to_sock);
     sendto(sockfd_for_write,output_to_sock,strlen(output_to_sock),0,&odraddr,sizeof(odraddr));
-    //printf("sendto : %s\n", hstrerror(h_errno));
 }
 
 /*
@@ -40,22 +39,10 @@ int msg_recv( int sockfd_for_read,char *message_received,
     socklen_t oddrlen;
     fd_set        rset;
 
-    //bzero(&odraddr, sizeof(odraddr)); /* fill in server's address */
-    //odraddr.sun_family = AF_LOCAL;
-    //strcpy(odraddr.sun_path, UNIXDG_PATH);
-    //connect(sockfd_for_read, (struct sockaddr *) &odraddr, sizeof(odraddr));
-   // printf("connect: %d\n",h_errno);
-    //printf("reading from socket : %d\n",sockfd_for_read );
-
-  //  Listen(sockfd_for_read, LISTENQ);
- //   n = recvfrom( sockfd_for_read,str_from_sock,MAXLINE,0,&odraddr,sizeof(odraddr) );
- //   printf("%d\n", n);
     FD_ZERO(&rset);
     
-    //maxfdp1 = max(sockfd_for_read, udpfd) + 1;
     for ( ; ; ) 
     {
-       // printf("in loop...\n" );
         FD_SET(sockfd_for_read, &rset);
        
         if ( (nready = select(sockfd_for_read + 1, &rset, NULL, NULL, NULL)) < 0) {
@@ -64,7 +51,6 @@ int msg_recv( int sockfd_for_read,char *message_received,
             else
               err_sys("select error");
         }
-printf("nready..%d\n",nready);
         if (FD_ISSET(sockfd_for_read, &rset)) 
         {
             
@@ -72,17 +58,17 @@ printf("nready..%d\n",nready);
             oddrlen=sizeof(odraddr);
             if((n=recvfrom(sockfd_for_read,str_from_sock,MAXLINE,0,&odraddr,&oddrlen))>=0)
             {
-               // printf("fgets done..\n");
-                printf("%s\n", str_from_sock);
+                printf("MESSAGE RECIEVE :Recieved string :%s\n", str_from_sock);
                 msg_fields[0] = strtok(str_from_sock, "|"); //get pointer to first token found and store in 0
                 while(msg_fields[i]!= NULL) 
-                {   //ensure a pointer was found
+                {   /* ensure a pointer was found */
                     i++;
-                    msg_fields[i] = strtok(NULL, "|"); //continue to tokenize the string
+                    msg_fields[i] = strtok(NULL, "|"); /* continue to tokenize the string */
                 }
                 
                 for(j = 0; j <= i-1; j++) {
-                    printf("%s\n", msg_fields[j]); //print out all of the tokens
+                    printf("\nPrinting out all tokens recieved..\n");
+                    printf("%s\n", msg_fields[j]); /* print out all of the tokens */
                 }
                 printf("Error 1\n");
                strcpy(message_received,msg_fields[0]);
@@ -96,8 +82,6 @@ printf("nready..%d\n",nready);
 
                return 1; //port to read from
            }
-           //printf("out FD_ISSET\n");
-          
         }
     
   }
@@ -105,7 +89,9 @@ printf("nready..%d\n",nready);
 
 }
 
-
+/*
+  Retrieve the destination canonical IP address in presentation format. 
+*/
 void retrieveDestinationCanonicalIpPresentationFormat(const char *server_vm, char *destination_canonical_ip_presentation_format)
 {
   struct hostent *hptr;
@@ -115,16 +101,12 @@ void retrieveDestinationCanonicalIpPresentationFormat(const char *server_vm, cha
     err_msg("gethostbyname error for host: %s : %s",server_vm,hstrerror(h_errno));
     return ;
   }
-  printf("gethostbyname worked! \n");
-        //for(pptr=hptr->h_aliases;*pptr!=NULL;pptr++)
-        //    printf("\talias: %s\n",*pptr);
   if(hptr->h_addrtype==NULL)
   {
     fprintf(stderr,"Invalid IP address\n");
     return ;
   }
   printf("Address type: ....%ld\n",hptr->h_addrtype);
-        //  printf("\talias: %s\n",hptr);
 
   switch(hptr->h_addrtype)
   {
@@ -135,8 +117,7 @@ void retrieveDestinationCanonicalIpPresentationFormat(const char *server_vm, cha
     if(pptr!=NULL)
     {
       inet_ntop(hptr->h_addrtype,*pptr,destination_canonical_ip_presentation_format,100);
-      printf("destination_canonical_ip_presentation_format: %s\n", destination_canonical_ip_presentation_format);
-      //printf("%s\n", inet_ntop(hptr->h_addrtype,*pptr,destination_canonical_ip_presentation_format,100) );
+      printf("Destination canonical IP in presentation format: %s\n", destination_canonical_ip_presentation_format);
     }
     break;
 
@@ -145,9 +126,11 @@ void retrieveDestinationCanonicalIpPresentationFormat(const char *server_vm, cha
     return ;
     break;
   }
-  //return destination_canonical_ip_presentation_format;
 }
 
+/*
+  Retrieve the hostname using IP address.
+*/
 void retrieveHostName( const char *address , char * h_name)
 {
   struct hostent     *hptr;

@@ -92,9 +92,17 @@ struct msg_store
 	struct msg_store * next;
 }*ms_head,*ms_tmp;
 
-/*
-	Insert into message store. 
-*/
+/*********************************************************************
+ *
+ * Function    :  insert_to_msg_store
+ *
+ * Description :  Insert into message store.                      
+ *
+ * Parameters  :  int broadcast_id ,int source_application_port_number, int destination_application_port_number , char * message
+ *      
+ * Returns     :  VOID
+ *
+ *********************************************************************/
 void insert_to_msg_store( int broadcast_id ,int source_application_port_number, int destination_application_port_number , char * message )
 {
 
@@ -1159,7 +1167,7 @@ void processRREQPacket( int packet_socket, struct odr_frame * recvd_packet,
 				sendRREP( packet_socket, recvd_packet);
 			}
 			else{
-				printf("RREP already sent for this route\n");
+				printf("(RREP sent flag = 1) RREP already sent for this route.\n");
 			}
 
 			if(notifyOthers){
@@ -1167,8 +1175,10 @@ void processRREQPacket( int packet_socket, struct odr_frame * recvd_packet,
 			}
 							
 		}else{
-			printf("Route not found..\n");
-							
+			if( !recvd_packet->route_rediscovery_flag )
+				printf("Route not found..\n");
+			else
+				printf( "Route Rediscovery Flag is set. Ignoring existing routes..\n" );				
 		}
 
 		floodRREQ( packet_socket, odraddr.sll_ifindex/*recieved_interface_index*/, recvd_packet->source_canonical_ip_address,
