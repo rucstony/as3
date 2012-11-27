@@ -518,14 +518,22 @@ int enterReverseRoute( char* destination_canonical_ip_address_presentation_forma
 			printf("Updating the routing entry irrespective of path efficiency (route_rediscovery_flag = 1)..\n");
 			update_routing_table( destination_canonical_ip_address_presentation_format, rreq_ethernet_header_next_hop_node_ethernet_address,
 								  outgoing_interface_index, number_of_hops_to_destination );
-			return 1;			
+			return 0;			
 		}	
+		else if(  ( strcmp(node->next_hop_node_ethernet_address, rreq_ethernet_header_next_hop_node_ethernet_address)!=0 ) 
+					&& (flag == 0)
+					&& (node->number_of_hops_to_destination == number_of_hops_to_destination) )
+		{
+			printf("Updating route with route through a different neighbour..\n");
+			update_routing_table( destination_canonical_ip_address_presentation_format, rreq_ethernet_header_next_hop_node_ethernet_address,
+								  outgoing_interface_index, number_of_hops_to_destination );
+		}
 		else if( (node->number_of_hops_to_destination == number_of_hops_to_destination) )
 		{
 			printf("Reconfirming route..\n");
 			update_routing_table( destination_canonical_ip_address_presentation_format, rreq_ethernet_header_next_hop_node_ethernet_address,
 								  outgoing_interface_index, number_of_hops_to_destination );
-			return 1;			
+			return 0;			
 		}	
 		else if( (node->number_of_hops_to_destination > number_of_hops_to_destination) )
 		{
@@ -534,12 +542,6 @@ int enterReverseRoute( char* destination_canonical_ip_address_presentation_forma
 								  outgoing_interface_index, number_of_hops_to_destination );
 			return 1;			
 		}	
-		else if(  ( strcmp(node->next_hop_node_ethernet_address, rreq_ethernet_header_next_hop_node_ethernet_address)!=0 ) && (flag == 0) )
-		{
-			printf("Updating route with route through a different neighbour..\n");
-			update_routing_table( destination_canonical_ip_address_presentation_format, rreq_ethernet_header_next_hop_node_ethernet_address,
-								  outgoing_interface_index, number_of_hops_to_destination );
-		}
 	}
 	return 0;	
 }
@@ -1193,6 +1195,13 @@ int enterNewRREQtoList( int broadcast_id, char * source_canonical_ip_address )
 		insert_to_rreq_list( broadcast_id, source_canonical_ip_address );
 		return 1;
 	}
+	else if( rl->broadcast_id < broadcast_id )
+	{
+		printf("Found higher BROADCAST ID, so updating source BROADCAST ID list.\n");
+		rreq_list_delete_entry( source_canonical_ip_address );
+		insert_to_rreq_list( broadcast_id, source_canonical_ip_address );
+		return 1;
+	}	
 	return 0;	
 }
 
@@ -1204,6 +1213,8 @@ void processRREQPacket( int packet_socket, struct odr_frame * recvd_packet,
 {
 	int route_exists, notifyOthers, new_rreq;
 	struct rreq_list * rl;	
+	int old_rreq_good;
+
 	printf("5\n");
 
 	new_rreq = enterNewRREQtoList( recvd_packet->broadcast_id, recvd_packet->source_canonical_ip_address );
@@ -1216,13 +1227,29 @@ void processRREQPacket( int packet_socket, struct odr_frame * recvd_packet,
 	printf("notifyOthers----->%d\n",notifyOthers );
     rl = rreq_list_lookup( recvd_packet->source_canonical_ip_address );									  
     printf("NOTIFY OTHERS : %d, NEW RREQ ? : %d, PACKET BROADCAST ID : %d\n", notifyOthers, new_rreq, recvd_packet->broadcast_id );
-	if( (!notifyOthers) 
-		&& (!new_rreq)
-		&& ( recvd_packet->broadcast_id <= rl->broadcast_id  ) )
+
+/*
+	if( rl->broadcast_id == recvd_packet->broadcast_id )
 	{
-		printf("Duplicate RREQ..\n");
-		return;
+		new_rreq = 0;
+	}
+	else
+	{
+		new_rreq = 1;
 	}	
+*/
+	if (new_rreq == 0)
+	{
+		if( notifyOthers == 1 )
+		{
+			old_rreq_good = 1;
+		}
+	}
+	else
+	{
+			old_rreq_good=0;	
+	}
+			
 	printf("6\n");
 	if(strcmp(recvd_packet->destination_canonical_ip_address,source_addr)==0)
 	{
@@ -1231,7 +1258,7 @@ void processRREQPacket( int packet_socket, struct odr_frame * recvd_packet,
 		recvd_packet->number_of_hops_to_destination=0;
 		recvd_packet->route_rediscovery_flag = 0;
 
-		if(!recvd_packet->RREP_sent_flag && notifyOthers)
+		if(!recvd_packet->RREP_sent_flag && (old_rreq_good || new_rreq) )
 		{
 			recvd_packet->control_msg_type = 1;
 			recvd_packet = preparePacketForResending( recvd_packet );
@@ -1256,30 +1283,38 @@ void processRREQPacket( int packet_socket, struct odr_frame * recvd_packet,
 		{
 			printf("Route found! \n SEND RREP\n");
 							 
-			if(!recvd_packet->RREP_sent_flag){
+			if((!recvd_packet->RREP_sent_flag) && (old_rreq_good || new_rreq) )
+			{
 				recvd_packet->control_msg_type = 1;
 				recvd_packet = preparePacketForResending( recvd_packet );
 				sendRREP( packet_socket, recvd_packet);
-			}
-			else{
-				printf("(RREP sent flag = 1) RREP already sent for this route.\n");
-			}
-
-			if(notifyOthers){
 				recvd_packet->RREP_sent_flag=1;
 			}
-							
-		}else{
+
+			if( (old_rreq_good || new_rreq) )
+			{
+				floodRREQ( packet_socket, odraddr.sll_ifindex/*recieved_interface_index*/, recvd_packet->source_canonical_ip_address,
+						   recvd_packet->broadcast_id, recvd_packet->destination_canonical_ip_address,   
+						   recvd_packet->number_of_hops_to_destination, recvd_packet->RREP_sent_flag, recvd_packet->route_rediscovery_flag );
+			}
+
+		}
+		else
+		{
 			if( !recvd_packet->route_rediscovery_flag )
 				printf("Route not found..\n");
 			else
 				printf( "Route Rediscovery Flag is set. Ignoring existing routes..\n" );				
-		}
-
 		
-		floodRREQ( packet_socket, odraddr.sll_ifindex/*recieved_interface_index*/, recvd_packet->source_canonical_ip_address,
-				   recvd_packet->broadcast_id, recvd_packet->destination_canonical_ip_address,   
-				   recvd_packet->number_of_hops_to_destination, recvd_packet->RREP_sent_flag, recvd_packet->route_rediscovery_flag );
+			if( notifyOthers || recvd_packet->route_rediscovery_flag )
+			{	
+				floodRREQ( packet_socket, odraddr.sll_ifindex/*recieved_interface_index*/, recvd_packet->source_canonical_ip_address,
+						   recvd_packet->broadcast_id, recvd_packet->destination_canonical_ip_address,   
+						   recvd_packet->number_of_hops_to_destination, recvd_packet->RREP_sent_flag, recvd_packet->route_rediscovery_flag );
+			}
+		
+		}
+		
 		print_routing_table();		
 	}
 	return;
@@ -1298,7 +1333,7 @@ void sendAppPayload( int packet_socket, struct routing_entry * re, char * source
     printf("sendAppPayload 1 %s \n", destination_canonical_ip_address);
 	populated_odr_frame = createApplicationPayloadMessage( source_canonical_ip_address, -1,
 													  	   destination_canonical_ip_address,   
-								 						   re->number_of_hops_to_destination, source_application_port_number,
+								 						   0, source_application_port_number,
 							   							   destination_application_port_number, application_data_payload ,
 							   							   number_of_bytes_in_application_message );
 	printf("sendAppPayload 2\n");
@@ -1314,7 +1349,7 @@ int main(int argc, char const *argv[])
 	struct hwa_info	*hwa, *hwahead;
 	struct sockaddr	*sa;
 	char   *ptr;
-	int    i, j, prflag,broadcast_id,n,s,len,clilen,pathlen,prolen;
+	int    i, j, prflag,broadcast_id=0,n,s,len,clilen,pathlen,prolen;
 	struct odr_frame * route_exists;
 	int packet_socket;
 	int nready , odrlen;
@@ -1503,7 +1538,8 @@ int main(int argc, char const *argv[])
 					}
 
 					broadcast_id++;
-					printf("New Broadcast id is : \n", broadcast_id);		
+					printf("ANTHONY BROADCAST ID : %d\n PORT\n,node port = %d,DESTINATION PORT NUMBER : %d\n, MESSAGE TO BE SENT : %s\n", 
+													broadcast_id, node->port, destination_port_number, message_to_be_sent  );		
 					//recieved_interface_index
 					insert_to_msg_store(broadcast_id, node->port , destination_port_number ,message_to_be_sent);
 
@@ -1599,6 +1635,7 @@ int main(int argc, char const *argv[])
 							recvd_packet->control_msg_type = 2;
 							recvd_packet->RREP_sent_flag = 0;
 							recvd_packet->route_rediscovery_flag=0;
+							recvd_packet->number_of_hops_to_destination=0;
 							recvd_packet->source_application_port_number= msg_store_entry->source_application_port_number;
 							recvd_packet->destination_application_port_number= msg_store_entry->destination_application_port_number;
 							printf("source_application_port_number %d\n",recvd_packet->source_application_port_number);
