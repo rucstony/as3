@@ -396,6 +396,8 @@ int routing_table_delete_entry( char * destination_canonical_ip_address )
 	struct routing_entry *node; 	
 	struct routing_entry *prev; 	
 
+	printf("Deleting routing table entry for : %s\n", destination_canonical_ip_address );
+
 	node = rt_head; 
 	while( node != NULL )	
 	{
@@ -467,6 +469,8 @@ void update_routing_table( char* destination_canonical_ip_address_presentation_f
 	node = routing_table_lookup( destination_canonical_ip_address_presentation_format );
 	gettimeofday(&curr_time_ms, NULL);
 
+	printf("Updating the routing table :\nDestination Canonical IP address : %s\nNew Hop count:%d\n", destination_canonical_ip_presentation_format, number_of_hops_to_destination );
+
 	/* Updating the routing table entry. */
 	strcpy(node->destination_canonical_ip_address, destination_canonical_ip_address_presentation_format);
 	strcpy(node->next_hop_node_ethernet_address, next_hop_node_ethernet_address);
@@ -499,20 +503,25 @@ int enterReverseRoute( char* destination_canonical_ip_address_presentation_forma
 	else
 	{
 		printf("enterReverseRoute 5\n");
-		if( (node->number_of_hops_to_destination > number_of_hops_to_destination) )
+		if( (node->number_of_hops_to_destination == number_of_hops_to_destination) )
 		{
-			printf("enterReverseRoute 6a\n");
+			printf("Reconfirming route..\n");
 			update_routing_table( destination_canonical_ip_address_presentation_format, rreq_ethernet_header_next_hop_node_ethernet_address,
 								  outgoing_interface_index, number_of_hops_to_destination );
-			printf("enterReverseRoute 6\n");
+			return 1;			
+		}	
+		else if( (node->number_of_hops_to_destination > number_of_hops_to_destination) )
+		{
+			printf("Updating the routing table with a better path. (Lesser hop count : %d)\n",number_of_hops_to_destination );
+			update_routing_table( destination_canonical_ip_address_presentation_format, rreq_ethernet_header_next_hop_node_ethernet_address,
+								  outgoing_interface_index, number_of_hops_to_destination );
 			return 1;			
 		}	
 		else if(  ( strcmp(node->next_hop_node_ethernet_address, rreq_ethernet_header_next_hop_node_ethernet_address)!=0 ) && (flag == 0) )
 		{
-			printf("enterReverseRoute 7\n");
+			printf("Updating route with route through a different neighbour..\n");
 			update_routing_table( destination_canonical_ip_address_presentation_format, rreq_ethernet_header_next_hop_node_ethernet_address,
 								  outgoing_interface_index, number_of_hops_to_destination );
-			printf("enterReverseRoute 8\n");
 		}
 	}
 	return 0;	
@@ -611,7 +620,7 @@ void sendRREP( int sockfd, struct odr_frame * recieved_odr_frame )
 	struct routing_entry * re; 
 	unsigned char source_mac[6];
 
-	re =  check_if_route_exists( recieved_odr_frame->source_canonical_ip_address );
+	re =  check_if_route_exists( recieved_odr_frame->source_canonical_ip_address , recieved_odr_frame->route_rediscovery_flag );
 	if( re == NULL )
 	{
 		printf("Reverse route not found! Probably the staleness_param is too short..\n");
@@ -729,7 +738,7 @@ void recvAppPayloadMessage( int sockfd, int packet_socket, struct odr_frame * re
 	}	
 	else
 	{
-		re = check_if_route_exists( recieved_odr_frame->destination_canonical_ip_address );	
+		re = check_if_route_exists( recieved_odr_frame->destination_canonical_ip_address, recieved_odr_frame->route_rediscovery_flag );	
 		if( re == NULL )
 		{
 		   //printf("Cannot find Reverse route!! staleness_param too short.\n");
@@ -848,7 +857,7 @@ void getOwnCanonicalIPAddress(char* own_canonical_ip_address)
 }
 
 
-struct routing_entry * check_if_route_exists( char * destination_canonical_ip_presentation_format );
+struct routing_entry * check_if_route_exists( char * destination_canonical_ip_presentation_format , int route_rediscovery_flag);
 //routing_entry recv_ODR();
 long staleness_param;
 
@@ -1203,6 +1212,7 @@ void processRREQPacket( int packet_socket, struct odr_frame * recvd_packet,
 		printf("recvd_packet->destination_canonical_ip_address %s, source_addr %s 7\n",recvd_packet->destination_canonical_ip_address,source_addr);
 		//odr is at the destination node 
 		recvd_packet->number_of_hops_to_destination=0;
+		recvd_packet->route_rediscovery_flag = 0;
 
 		if(!recvd_packet->RREP_sent_flag && notifyOthers)
 		{
@@ -1218,7 +1228,7 @@ void processRREQPacket( int packet_socket, struct odr_frame * recvd_packet,
 		if(!recvd_packet->route_rediscovery_flag)
 		{
 			printf("checking entry for `%s` in routing table  \n", recvd_packet->destination_canonical_ip_address);
-			route_exists=check_if_route_exists(recvd_packet->destination_canonical_ip_address ); //pass address of existing_entry so that its value can be set inside the function
+			route_exists=check_if_route_exists(recvd_packet->destination_canonical_ip_address, recvd_packet->route_rediscovery_flag ); //pass address of existing_entry so that its value can be set inside the function
 		}
 		else
 		{	
@@ -1446,7 +1456,7 @@ int main(int argc, char const *argv[])
 				if(!route_rediscovery_flag)
 				{
 					printf("checking entry for `%s` in routing table  \n", destination_canonical_ip_presentation_format);
-					route_exists=check_if_route_exists(destination_canonical_ip_presentation_format ); //pass address of existing_entry so that its value can be set inside the function
+					route_exists=check_if_route_exists(destination_canonical_ip_presentation_format, route_rediscovery_flag ); //pass address of existing_entry so that its value can be set inside the function
 				}
 				else
 				{	
@@ -1555,7 +1565,7 @@ int main(int argc, char const *argv[])
 	 
 						printf("\nRETRIEVED A PATH !!\n");
 						/*  */
-						re = check_if_route_exists( recvd_packet->destination_canonical_ip_address );	
+						re = check_if_route_exists( recvd_packet->destination_canonical_ip_address, recvd_packet->route_rediscovery_flag );	
 						if( re == NULL )
 						{
 							printf("Unable to find route ! staleness_param is too short..\n");
@@ -1587,7 +1597,7 @@ int main(int argc, char const *argv[])
 		           		recvd_packet = preparePacketForResending( recvd_packet );
 		           		sendRREP( packet_socket, recvd_packet);
 	            	}
-	            }else//message
+	            }else// APPLICATION DATA PAYLOAD RECIEVED
 	            {
 	            	//recvd_packet	
 	            	printf("application_data_payload received\n ");
@@ -1618,7 +1628,7 @@ long timevaldiff(struct timeval *starttime, struct timeval *finishtime)
 	return msec;
 }
 
-struct routing_entry * check_if_route_exists( char * destination_canonical_ip_presentation_format )
+struct routing_entry * check_if_route_exists( char * destination_canonical_ip_presentation_format , int route_rediscovery_flag)
 {
   	long msec;
 	int count=0;
@@ -1635,7 +1645,8 @@ struct routing_entry * check_if_route_exists( char * destination_canonical_ip_pr
 			gettimeofday(&curr_time_ms, NULL);
 		  	msec = timevaldiff( &(node->made_or_last_reconfirmed_or_updated_timestamp), &curr_time_ms );
 				
-			if(msec >= staleness_param*1000 )
+			if(msec >= staleness_param*1000 
+				|| route_rediscovery_flag == 1)
 			{
 
 				printf("Time diff : %ld\n", msec);
