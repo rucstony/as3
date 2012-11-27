@@ -13,7 +13,7 @@
 #define UNIX_SERV_PATH "unixservpath"
 #define APP_DATA_PAYLOAD_LEN 1436
 #define SERVER_PORT 80
-
+#define TIME_TO_LIVE_MS 100000
 int client_port=101;
 
 /*
@@ -40,6 +40,7 @@ struct port_sunpath_mapping_entry
 	char sunpath[100];
 	char message[100];
 	int destination_port_number;
+	struct timeval last_updated_timestamp;
 	struct port_sunpath_mapping_entry * next;	
 
 }*psm_head,*psm_tmp;
@@ -207,7 +208,11 @@ struct port_sunpath_mapping_entry * insert_to_port_sunpath_mapping( char * sunpa
 {
     struct port_sunpath_mapping_entry *node = (struct port_sunpath_mapping_entry *)malloc( sizeof(struct port_sunpath_mapping_entry) );
 
-    strcpy( node->sunpath, sunpath );
+    struct timeval curr_time_ms;
+	strcpy( node->sunpath, sunpath );
+	gettimeofday(&curr_time_ms, NULL);
+	node->last_updated_timestamp = curr_time_ms;
+
     node->port = port;
 
     if( psm_head == NULL )
@@ -226,6 +231,7 @@ struct port_sunpath_mapping_entry * insert_to_port_sunpath_mapping( char * sunpa
       psm_head->next = node;
       node->next = psm_tmp;            
     } 
+    printf("New entry for sunpath, port : %s, %d added at %s\n",sunpath, port, curr_time_ms );
  	return node;
  }
 
@@ -236,6 +242,8 @@ struct port_sunpath_mapping_entry * port_sunpath_lookup( char * sunpath, int app
 {
 	struct port_sunpath_mapping_entry *node; 	
 
+	struct timeval curr_time_ms;
+
 	node = psm_head;
 	while( node != NULL )
 	{
@@ -243,14 +251,52 @@ struct port_sunpath_mapping_entry * port_sunpath_lookup( char * sunpath, int app
 		{	
 			if( strcmp( node->sunpath, sunpath ) == 0 )
 			{
-				return node;
+				gettimeofday(&curr_time_ms, NULL);
+				node->last_updated_timestamp = curr_time_ms;
+	
+				if(timevaldiff(curr_time_ms, node)< TIME_TO_LIVE_MS)
+				{
+					return node;
+				}
+				else
+				{
+					printf("Entry for port, sunpath : %d, %s  is stale\n", node->port, node->sunpath);
+					if(port_sunpath_delete(node->sunpath)!=-1)
+					{
+						printf("Entry for port, sunpath : %d, %s  deleted\n", node->port, node->sunpath);
+					}
+					else
+					{
+						printf("Error while deleting entry for port, sunpath : %d, %s\n", node->port, node->sunpath);
+					}
+					return NULL;
+				}
 			}
 		}
 		else
 		{
 			if( node->port == application_port_number )
 			{
-				return node;
+				gettimeofday(&curr_time_ms, NULL);
+				node->last_updated_timestamp = curr_time_ms;
+	
+				if(timevaldiff(curr_time_ms, node)< TIME_TO_LIVE_MS)
+				{
+					return node;
+				}
+				else
+				{
+					printf("Entry for port, sunpath : %d, %s  is stale\n", node->port, node->sunpath);
+					if(port_sunpath_delete(node->sunpath)!=-1)
+					{
+						printf("Entry for port, sunpath : %d, %s  deleted\n", node->port, node->sunpath);
+					}
+					else
+					{
+						printf("Error while deleting entry for port, sunpath : %d, %s\n", node->port, node->sunpath);
+					}
+					return NULL;
+				}
 			}	
 		}	
 		node = node->next;
@@ -595,13 +641,14 @@ void transmitAppPayloadMessage( int s, struct routing_entry * re ,struct odr_fra
 /*
 	Send Application payload message to the application layer.
 */
-void sendToAppLayer( int sockfd, char * application_data_payload ,char * sunpath ,char *source_canonical_ip_address, int source_port_number)
+int sendToAppLayer( int sockfd, char * application_data_payload ,char * sunpath ,char *source_canonical_ip_address, int source_port_number)
 {
 	struct sockaddr_un  odraddr;  
     char output_to_sock[MAXLINE];
     char strPort[15] ;
+    int n;
     sprintf(strPort,"%d",source_port_number);
-    printf("Just before string copy..\n");  	
+      	
     strcpy(output_to_sock, application_data_payload);  
 
     sprintf(output_to_sock,"%s|%s|%s\n", application_data_payload, 
@@ -613,12 +660,17 @@ void sendToAppLayer( int sockfd, char * application_data_payload ,char * sunpath
     odraddr.sun_family = AF_LOCAL;
     strcpy(odraddr.sun_path, sunpath);
 
-	printf("Sending data to application: %s from %s\n", output_to_sock, odraddr.sun_path);
-    sendto(sockfd,output_to_sock,strlen(output_to_sock),0,&odraddr,SUN_LEN(&odraddr));
-    perror( "sendto" );
+	printf("Sending data `%s` to application at %s\n", output_to_sock, odraddr.sun_path);
+    n=sendto(sockfd,output_to_sock,strlen(output_to_sock),0,&odraddr,SUN_LEN(&odraddr));
+    if(n==-1)
+    {
+    	perror( "sendto" );
+    	return -1;
+    }
+
     print_mapping();
     printf("Sent data to application: %s\n", output_to_sock);
-	return;
+	return 1;
 }
 
 /*
@@ -628,36 +680,51 @@ void recvAppPayloadMessage( int sockfd, int packet_socket, struct odr_frame * re
 {
 	char own_canonical_ip_address[INET_ADDRSTRLEN];
 	char application_data_payload[APP_DATA_PAYLOAD_LEN];
-	int application_port_number;
+	int application_port_number, n=-1;
 	struct port_sunpath_mapping_entry * psme;
 	char sunpath[100];
 	struct routing_entry * re;
+	struct timeval curr_time_ms;
 
 	getOwnCanonicalIPAddress(own_canonical_ip_address);
 	// (if at destination)Stuff the data_payload into message array and send to x based on port mapping data. 
 	if( strcmp(recieved_odr_frame->destination_canonical_ip_address,own_canonical_ip_address )==0 )
 	{
-        printf("Entered inside..\n");
+       
+
 		strcpy(application_data_payload,recieved_odr_frame->application_data_payload);
 
-        printf("Entered inside..1\n");
-		application_port_number = recieved_odr_frame->destination_application_port_number;	 
-		        printf("Entered inside..2\n");
-        printf("\n\nApplication port number : %d\n", application_port_number );
+       	application_port_number = recieved_odr_frame->destination_application_port_number;	 
+		
+        //printf("\n\nApplication port number : %d\n", application_port_number );
+        
         print_mapping();        
         psme = port_sunpath_lookup( NULL, recieved_odr_frame->destination_application_port_number );
-		        printf("Entered inside..3\n");
-
-                printf("sunpath, port entry found1 : %s,  %d\n", psme->sunpath, recieved_odr_frame->destination_application_port_number);
+		
+        printf("sunpath, port entry found : %s,  %d\n", psme->sunpath, recieved_odr_frame->destination_application_port_number);
         
-        printf("sunpath, port entry found2 : %s,  %d\n", psme->sunpath, recieved_odr_frame->source_application_port_number);
-		        printf("Entered inside..4\n");
-
+       
         strcpy(sunpath,psme->sunpath);
 		
-               printf("Entered inside..5\n");
+           printf("Entered inside..5\n");
 
-		sendToAppLayer( sockfd, application_data_payload, sunpath ,recieved_odr_frame->source_canonical_ip_address, recieved_odr_frame->source_application_port_number );
+        if(psme!=NULL)
+        {
+			n = sendToAppLayer( sockfd, application_data_payload, sunpath ,recieved_odr_frame->source_canonical_ip_address, recieved_odr_frame->source_application_port_number );
+		}
+
+		if(n==-1)
+		{
+			printf("Could not write to procces! \n");
+		}
+		else
+		{
+			
+			gettimeofday(&curr_time_ms, NULL);
+			psme->last_updated_timestamp = curr_time_ms;
+			printf("Reconfirmed port, sunpath entry : %d, %s at %s \n",psme->sunpath , psme->port, psme->last_updated_timestamp);
+		}
+
 	}	
 	else
 	{
