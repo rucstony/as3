@@ -231,7 +231,7 @@ struct port_sunpath_mapping_entry * insert_to_port_sunpath_mapping( char * sunpa
       psm_head->next = node;
       node->next = psm_tmp;            
     } 
-    printf("New entry for sunpath, port : %s, %d added at %s\n",sunpath, port, curr_time_ms );
+    printf("New entry for sunpath, port : %s, %d\n",sunpath, port);
  	return node;
  }
 
@@ -254,7 +254,7 @@ struct port_sunpath_mapping_entry * port_sunpath_lookup( char * sunpath, int app
 				gettimeofday(&curr_time_ms, NULL);
 				node->last_updated_timestamp = curr_time_ms;
 	
-				if(timevaldiff(curr_time_ms, node)< TIME_TO_LIVE_MS 
+				if(timevaldiff(&(node->last_updated_timestamp),&curr_time_ms)< TIME_TO_LIVE_MS 
 					|| node->port == 80)
 				{
 					return node;
@@ -281,7 +281,7 @@ struct port_sunpath_mapping_entry * port_sunpath_lookup( char * sunpath, int app
 				gettimeofday(&curr_time_ms, NULL);
 				node->last_updated_timestamp = curr_time_ms;
 	
-				if(timevaldiff(curr_time_ms, node)< TIME_TO_LIVE_MS)
+				if(timevaldiff(&(node->last_updated_timestamp),&curr_time_ms)< TIME_TO_LIVE_MS)
 				{
 					return node;
 				}
@@ -739,7 +739,7 @@ void recvAppPayloadMessage( int sockfd, int packet_socket, struct odr_frame * re
 			
 			gettimeofday(&curr_time_ms, NULL);
 			psme->last_updated_timestamp = curr_time_ms;
-			printf("Reconfirmed port, sunpath entry : %d, %s at %s \n",psme->sunpath , psme->port, psme->last_updated_timestamp);
+			printf("Reconfirmed port, sunpath entry : %d, %s\n",psme->sunpath , psme->port );
 		}
 
 	}	
