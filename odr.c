@@ -1625,7 +1625,7 @@ int main(int argc, char const *argv[])
 					/* Forward routes. */
 					enterReverseRoute( recvd_packet->destination_canonical_ip_address,
 										next_hop_node_ethernet_address,
-										/*interface index*/odraddr.sll_ifindex,recvd_packet->number_of_hops_to_destination, 1 , 0);
+										/*interface index*/odraddr.sll_ifindex,recvd_packet->number_of_hops_to_destination, 1 , recvd_packet->route_rediscovery_flag);
 
 
 					if( strcmp(  recvd_packet->source_canonical_ip_address, source_addr)==0 )

@@ -68,7 +68,7 @@ int main(int argc, char **argv)
             continue;
         }
         strcpy(route_rediscovery_flag,"0");
-        alarm(5);
+        alarm(50);
         //printf("after alarm set\n");
         msg_send( sockfd,  destination_canonical_ip_presentation_format, "80",  message_to_be_sent, route_rediscovery_flag );
         
@@ -116,7 +116,7 @@ static void message_receive_timeout(int signo)
       printf("Client at node   %s  : timeout on response from   %s\n", client_vm, server_vm);
       printf("Retransmitting message with Forced Route Discovery\n");
       strcpy(route_rediscovery_flag,"1");
-      alarm(5);
+      alarm(50);
       msg_send( sockfd,  destination_canonical_ip_presentation_format, "80",  message_to_be_sent, route_rediscovery_flag );
       
     }else
