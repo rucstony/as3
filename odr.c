@@ -1185,6 +1185,21 @@ void print_rreq_list()
 	return;	
 }
 
+void update_rreq_list( int broadcast_id, char * source_canonical_ip_address )
+{
+	struct rreq_list * rl;
+	rl = rreq_list_lookup( source_canonical_ip_address );
+	if( rl == NULL )
+	{	
+		insert_to_rreq_list( broadcast_id, source_canonical_ip_address );
+	}
+	else
+	{
+		rl->broadcast_id = broadcast_id;
+	}	
+	return;
+}
+
 int enterNewRREQtoList( int broadcast_id, char * source_canonical_ip_address )
 {
 	struct rreq_list * rl;
@@ -1198,8 +1213,8 @@ int enterNewRREQtoList( int broadcast_id, char * source_canonical_ip_address )
 	else if( rl->broadcast_id < broadcast_id )
 	{
 		printf("Found higher BROADCAST ID, so updating source BROADCAST ID list.\n");
-		rreq_list_delete_entry( source_canonical_ip_address );
-		insert_to_rreq_list( broadcast_id, source_canonical_ip_address );
+		update_rreq_list(broadcast_id, source_canonical_ip_address);		
+		printf("Done updating..\n");
 		return 1;
 	}	
 	return 0;	
@@ -1292,7 +1307,7 @@ void processRREQPacket( int packet_socket, struct odr_frame * recvd_packet,
 			}
 
 			if( (old_rreq_good || new_rreq) )
-			{
+			{	
 				floodRREQ( packet_socket, odraddr.sll_ifindex/*recieved_interface_index*/, recvd_packet->source_canonical_ip_address,
 						   recvd_packet->broadcast_id, recvd_packet->destination_canonical_ip_address,   
 						   recvd_packet->number_of_hops_to_destination, recvd_packet->RREP_sent_flag, recvd_packet->route_rediscovery_flag );
@@ -1628,10 +1643,10 @@ int main(int argc, char const *argv[])
 						}	
 						else
 						{
-							printf("BROADCAST ID %d\n",recvd_packet->broadcast_id );
-							print_msg_store();
+							//printf("BROADCAST ID %d\n",recvd_packet->broadcast_id );
+							//print_msg_store();
 							msg_store_entry = msg_store_lookup( recvd_packet->broadcast_id );
-                             print_msg_store();	
+                            //print_msg_store();	
 							recvd_packet->control_msg_type = 2;
 							recvd_packet->RREP_sent_flag = 0;
 							recvd_packet->route_rediscovery_flag=0;
@@ -1647,7 +1662,7 @@ int main(int argc, char const *argv[])
 							source_mac = retrieveMacFromInterfaceIndex( re->outgoing_interface_index );
 
 							sendODRframe( packet_socket , recvd_packet , source_mac, re->next_hop_node_ethernet_address , re->outgoing_interface_index );
-							msg_store_delete_entry( ntohl(recvd_packet->broadcast_id) );
+							//msg_store_delete_entry( ntohl(recvd_packet->broadcast_id) );
 						}
 					}		            
 		           	else
