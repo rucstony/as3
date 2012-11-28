@@ -92,38 +92,39 @@ int msg_recv( int sockfd_for_read,char *message_received,
 /*
   Retrieve the destination canonical IP address in presentation format. 
 */
-void retrieveDestinationCanonicalIpPresentationFormat(const char *server_vm, char *destination_canonical_ip_presentation_format)
+int retrieveDestinationCanonicalIpPresentationFormat(const char *server_vm, char *destination_canonical_ip_presentation_format)
 {
   struct hostent *hptr;
   char *ptr, **pptr;
   if((hptr=gethostbyname(server_vm))==NULL)
   {
     err_msg("gethostbyname error for host: %s : %s",server_vm,hstrerror(h_errno));
-    return ;
+    return -1;
   }
   if(hptr->h_addrtype==NULL)
   {
     fprintf(stderr,"Invalid IP address\n");
-    return ;
+    return -1;
   }
   printf("Address type: ....%ld\n",hptr->h_addrtype);
 
   switch(hptr->h_addrtype)
   {
     case AF_INET:
-    printf("AF_INET type");
+    //printf("AF_INET type");
 
     pptr=hptr->h_addr_list;
     if(pptr!=NULL)
     {
       inet_ntop(hptr->h_addrtype,*pptr,destination_canonical_ip_presentation_format,100);
       printf("Destination canonical IP in presentation format: %s\n", destination_canonical_ip_presentation_format);
+      return 1;
     }
     break;
 
     default:
     fprintf(stderr,"unknown address type\n");
-    return ;
+    return -1;
     break;
   }
 }

@@ -11,7 +11,7 @@ static void message_receive_timeout(int signo);
  char template[100];
  char destination_canonical_ip_presentation_format[100];
 char  route_rediscovery_flag[]="0";
-
+int flag=0;
 
 int main(int argc, char **argv)
 {
@@ -29,7 +29,7 @@ int main(int argc, char **argv)
     char  buf[100];
     time_t ticks;
     int fp;
-
+    int result=-1;
     strcpy(template,"/tmp/fileXXXXXX");
     fp=mkstemp(template);
     printf("file pointer from mkstemp :%d\n", fp);
@@ -54,21 +54,44 @@ int main(int argc, char **argv)
         scanf("%s",&server_vm);
     
         gethostname( client_vm, sizeof(client_vm) );
-                 
-        printf("Client at node %s sending request to server at  %s\n", client_vm, server_vm);
-        retrieveDestinationCanonicalIpPresentationFormat(server_vm, destination_canonical_ip_presentation_format);      
+ 
+        
+        result=retrieveDestinationCanonicalIpPresentationFormat(server_vm, destination_canonical_ip_presentation_format);      
+        if(result==1)
+        {
+            printf("Client at node %s sending request to server at  %s\n", client_vm, server_vm);
+
+        }
+        else
+        {
+            printf("Server VM not found..\n");
+            continue;
+        }
         strcpy(route_rediscovery_flag,"0");
-        alarm(500);
-        printf("after alarm set\n");
+        alarm(5);
+        //printf("after alarm set\n");
         msg_send( sockfd,  destination_canonical_ip_presentation_format, "80",  message_to_be_sent, route_rediscovery_flag );
         
-        printf("before recv\n");
+        
         if(sigsetjmp(jmpbuf,1)!=0)
         {
-            goto requestClient;
-        }
-        msg_recv( sockfd, message_received, source_canonical_ip_presentation_format, source_port_number);
 
+            if(flag)
+            {
+                flag=0;
+                goto requestClient;
+
+            }
+            else
+            {
+                flag=1;
+                goto receive_message;
+            }
+        }
+        receive_message:
+        printf("Waiting for response...\n");
+        msg_recv( sockfd, message_received, source_canonical_ip_presentation_format, source_port_number);
+        flag=0;
         alarm(0);
 
         ticks=time(NULL);
@@ -88,12 +111,18 @@ int main(int argc, char **argv)
 */
 static void message_receive_timeout(int signo)
 {
-     
+     if(flag==0)
+     {
       printf("Client at node   %s  : timeout on response from   %s\n", client_vm, server_vm);
       printf("Retransmitting message with Forced Route Discovery\n");
       strcpy(route_rediscovery_flag,"1");
+      alarm(5);
       msg_send( sockfd,  destination_canonical_ip_presentation_format, "80",  message_to_be_sent, route_rediscovery_flag );
+      
+    }else
+    {
+        printf("Request could not be transmitted from client at %s to %s. Please try again\n",client_vm,server_vm);
+    }
       siglongjmp(jmpbuf,1);
         return;
 }
-
